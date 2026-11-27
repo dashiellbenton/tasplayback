@@ -4,8 +4,8 @@
 |---|---|
 | Plan | Approved 2026-11-27 (decisions in PLAN.md §12) |
 | 0 Build skeleton | Done |
-| **1 core** | **Done** |
-| 2 Vertical slice (1.21.11, 1.12.2-forge, 1.12.2-legacyfabric) | not started |
+| 1 core | Done |
+| **2 Vertical slice (1.21.11, 1.12.2-forge, 1.12.2-legacyfabric)** | **Done** |
 | 3 GUI Tier 1 | not started |
 | 4 Sound | not started |
 | 5 Exporter | not started |
@@ -18,17 +18,90 @@
 "Boots" = the dev client started headless (Xvfb + Mesa llvmpipe), logged TASPlayback's init line, logged the
 smoke mixin line (proving mixin + remapping work), and reached the title screen with no crash report.
 
-| Node | Loader / toolchain | Java | Jar builds | Mixin target namespace in jar | Boots | Notes |
-|---|---|---|---|---|---|---|
-| 1.12.2-forge | Forge 14.23.5.2847, RFG 2.0.6, MixinBooter 12.5 | 8 | ✅ | MCP class names + SRG refmap | ✅ | |
-| 1.12.2-legacyfabric | LegacyFabric, legacy-looming 1.16.1 (Loom 1.16.3), `net.legacyfabric:yarn:1.12.2+build.mcp` | 8 | ✅ | `net/minecraft/class_1600` (LegacyFabric intermediary, same as released TASmod) | ✅ | |
-| 1.14.4 | Fabric, Loom 1.19.4 (remap), Mojang mappings | 8 | ✅ | `class_310` (Fabric intermediary) | ✅ | |
-| 1.16.5 | same | 8 | ✅ | intermediary | ✅ | |
-| 1.20.1 | same | 17 | ✅ | intermediary | ✅ | |
-| 1.21.11 | same | 21 | ✅ | `class_310` | ✅ | |
-| 26.3 | Fabric, Loom 1.19.4 (no remap), unobfuscated | 25 | ✅ | `net/minecraft/client/Minecraft` | ✅ | headless needs `SDL_VIDEO_FORCE_EGL=1` (see below) |
+| Node | Loader / toolchain | Java | Jar builds | Mixin target namespace in jar | Boots | Record + replay (M2) | Notes |
+|---|---|---|---|---|---|---|---|
+| 1.12.2-forge | Forge 14.23.5.2847, RFG 2.0.6, MixinBooter 12.5 | 8 | ✅ | MCP class names + SRG refmap | ✅ | ✅ avg diff 0.04 | |
+| 1.12.2-legacyfabric | LegacyFabric, legacy-looming 1.16.1 (Loom 1.16.3), `net.legacyfabric:yarn:1.12.2+build.mcp` | 8 | ✅ | `net/minecraft/class_1600` (LegacyFabric intermediary, same as released TASmod) | ✅ | ✅ avg diff 0.03 | |
+| 1.14.4 | Fabric, Loom 1.19.4 (remap), Mojang mappings | 8 | ✅ | `class_310` (Fabric intermediary) | ✅ | not yet (M6) | |
+| 1.16.5 | same | 8 | ✅ | intermediary | ✅ | not yet (M6) | |
+| 1.20.1 | same | 17 | ✅ | intermediary | ✅ | not yet (M6) | |
+| 1.21.11 | same | 21 | ✅ | `class_310` | ✅ | ✅ avg diff 0.51 | |
+| 26.3 | Fabric, Loom 1.19.4 (no remap), unobfuscated | 25 | ✅ | `net/minecraft/client/Minecraft` | ✅ | not yet (M6) | headless needs `SDL_VIDEO_FORCE_EGL=1` (see below) |
 
 Evidence: `docs/m0/smoke-contact-sheet.jpg` (title screens of all seven, in table order).
+
+## Milestone 2 report: vertical slice on 1.21.11, 1.12.2-forge and 1.12.2-legacyfabric
+
+### What works
+- **Recording** (F8 toggles; the recording starts with the next world join and spans every rejoin as a
+  new segment). Everything is captured read-only and handed to the non-blocking writer:
+  - **World:** on 1.21.11 the singleplayer pipeline already carries encoded packets, so a netty tee
+    copies the raw frames, and a hook on the main-thread packet queue records when each one was handled
+    (`RAW_FRAME` + `DELIVER`). On 1.12.2 the channel carries packet objects, so each packet is encoded
+    with its own codec at the moment the main thread handles it (`PACKET`).
+  - **Per tick:** the local player's render state (positions and their "old" values, rotations, body
+    and head yaw, view bob, hand sway, swing, use-item, hurt and death, walk animation, cape motion,
+    portal and nausea warp, attack cooldown, selected slot, hand-renderer equip state and items, own
+    block-break progress), inventory changes as the client saw them, and block changes the client
+    predicted for its own actions.
+  - **Per frame:** final camera position and rotation, world and hand FOV, perspective, raw and
+    GUI-scaled mouse position, buttons, held keys, flags (cursor grabbed, screen open, F1, paused, F3),
+    window, framebuffer and GUI scale, wall-clock time (metadata only).
+- **Playback** (title screen → "TAS Replays", or `-Dtasplayback.autoplay`). A replay connection with no
+  server behind it is fed the recorded packets at their recorded points: on 1.21.11 a vanilla in-memory
+  pipeline on a netty `EmbeddedChannel`, so login, configuration and play run through the real
+  listeners; on 1.12.2 a `NetHandlerPlayClient` (Forge also gets a `NetworkDispatcher`). The replay
+  runs client ticks itself, one at a time, sets the partial tick from the `PlaybackClock`, and restores
+  the recorded player state after each tick. The vanilla renderer then produces the frame, with camera
+  and FOV overridden from the recording on 1.21.11. Frozen spans are skipped. The cursor is drawn from
+  the recorded position, since the OS cursor is never in the framebuffer. Toasts on 1.21.11 animate on
+  the recorded wall clock. Controls: Space pause, Left/Right frame step, Up/Down speed.
+
+### How I verified it
+`scripts/record-replay-verify.sh` runs a scripted session (fixed-seed superflat world, teleport,
+`/give`, walk, turn, jump, hotbar changes, break and place blocks, third-person front and back) with
+thumbnails captured every 10 frames, then replays it frame by frame in a fresh client and compares.
+`scripts/determinism.sh` runs the same script with recording off, off again (vanilla baseline) and on.
+
+| Node | Frames compared | Mean abs diff (0-255) avg / max | Full-size frames pixel-identical | Determinism off = off = on | RNG tripwire |
+|---|---|---|---|---|---|
+| 1.21.11 | 30 | 0.51 / 8.8 (max = frame 0, loading screen) | not measured this run; HUD region 0 px in all | ✅ bit-identical | ✅ 0 violations |
+| 1.12.2-forge | 63 | 0.04 / 0.54 | 13 of 16 | ✅ bit-identical | n/a (see risks) |
+| 1.12.2-legacyfabric | 63 | 0.03 / 0.87 | 10 of 16 (others: horizon line, ≤ 1627 px) | ✅ bit-identical | n/a |
+
+Evidence: `docs/m2/1.21.11-record-vs-replay.jpg`, `docs/m2/1.12.2-record-vs-replay.jpg`.
+
+Bugs found and fixed through this verification: the replayed player was frustum-culled (position set
+without its bounding box); the wrong default skin on 1.12.2 (the replay used the viewer's random
+offline profile; the recorded profile is now in `meta.json`); a missing attack-cooldown indicator;
+missing own break cracks and predicted block changes; the viewer's tutorial hints and pause-on-focus-loss
+leaking into replays; and a race in the test script itself (it started before the `/tp` had arrived),
+which had made vanilla's own baseline non-repeatable on Forge.
+
+### Remaining differences and open risks
+1. **Particles from client randomness** (block-hit and break particles, some ambient ones) don't
+   reproduce, because the replay client's random state differs. Proposed fix (later milestone): record
+   particle spawns, or snapshot and restore the client RNG state per tick.
+2. **Loading screen:** the first frames differ. The recording showed the server's chunk-progress view,
+   which a server-less replay can't have. Distant chunks may also mesh at a slightly different pace,
+   which shows as a thin horizon line.
+3. **Recording starts at world join.** A recording can't start mid-session, because playback needs the
+   connection from login onwards. Synthesizing the initial state is possible later; TAS workflows rejoin
+   or reload anyway.
+4. **Rewind detection is basic:** each reconnect is a new segment treated as a continuation. Real
+   savestate and rewind detection with TASmod, LoTAS and `/tick` is M7.
+5. **No RNG tripwire on 1.12.2:** it uses `java.util.Random`, which a mixin can't instrument. Requirement
+   1 rests there on the on/off determinism test and on code review (capture code only reads fields and
+   encodes packets).
+6. **1.12.2 is not covered on two points:** mouse position is integer pixels (LWJGL2 has no sub-pixel
+   cursor), and toast timing isn't driven from the recorded clock yet. Skin and cape textures download
+   asynchronously, so whether a cape shows can differ.
+7. **Sound** (M4), **GUI screens** (M3) and the **other Fabric nodes** (M6) aren't wired yet. On those
+   nodes the jar still loads and logs that it has no implementation.
+8. **The two "MCP" mapping sets differ:** LegacyFabric's `build.mcp` mappings differ from Forge's
+   `stable_39` in a few member names (found: `Minecraft.networkManager`/`myNetworkManager`,
+   `gameDir`/`mcDataDir`). The shared 1.12.2 code avoids both. Any new 1.12.2 hook has to be checked
+   against both mapping sets.
 
 ## Milestone 1 report: `core`
 
@@ -142,3 +215,4 @@ runtime of the 1.12.2–1.16.5 nodes). `buildAll` now depends on both test runs.
   RFG 2.0.6, MixinBooter 12.5, Gradle 9.9.2). Wrote PLAN.md. Plan approved with decisions in PLAN.md §12.
 - 2026-11-27: Milestone 0. One build, 7 nodes, all boot headless. Details above.
 - 2026-11-27: Milestone 1. `core` complete, 54 tests green on Java 21 and Java 8. Details above.
+- 2026-11-27: Milestone 2. Record + replay on 1.21.11, 1.12.2-forge and 1.12.2-legacyfabric; verified frame by frame and with on/off determinism runs. Details above.

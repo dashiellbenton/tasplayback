@@ -72,6 +72,8 @@ final class RecordingSession {
         meta.framebufferHeight = mc.getWindow().getHeight();
         meta.guiScale = mc.getWindow().getGuiScale();
         meta.language = mc.options.languageCode;
+        meta.playerName = mc.getUser().getName();
+        meta.playerUuid = String.valueOf(mc.getUser().getProfileId());
         for (Pack p : mc.getResourcePackRepository().getSelectedPacks()) {
             meta.resourcePacks.add(new RecordingMeta.ResourcePack(p.getId(), p.getTitle().getString(), ""));
         }

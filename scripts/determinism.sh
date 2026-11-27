@@ -20,6 +20,7 @@ rec_ok = strip(s["off1"]) == strip(s["on"])
 for k, v in s.items(): print(k, json.dumps(strip(v)))
 print("vanilla run-to-run identical:", base_ok)
 print("recording ON identical to OFF:", rec_ok)
-print("tripwire violations while recording:", s["on"]["tripwireViolations"], "(recorder capture code drew from a game RNG)")
-sys.exit(0 if (rec_ok and s["on"]["tripwireViolations"] == 0) else 1)
+tw = s["on"]["tripwireViolations"]
+print("RNG tripwire while recording:", "not measured on this node" if tw < 0 else f"{tw} violations (recorder capture code drew from a game RNG)")
+sys.exit(0 if (base_ok and rec_ok and tw <= 0) else 1)
 PY

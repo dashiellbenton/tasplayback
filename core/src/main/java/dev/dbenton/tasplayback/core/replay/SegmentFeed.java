@@ -39,6 +39,12 @@ public final class SegmentFeed {
                 long seq = WorldEvents.seqOf(e);
                 if (seq != f.size()) throw new FormatException("raw frame sequence gap: got " + seq + ", expected " + f.size());
                 f.add(WorldEvents.frameBytes(e));
+            } else if (e.type == WorldEvents.PACKET) {
+                f.add(e.payload);
+                if (keepDeliver.test(e.key)) {
+                    dk.add(e.key);
+                    ds.add((long) (f.size() - 1));
+                }
             } else if (e.type == WorldEvents.DELIVER) {
                 if (keepDeliver.test(e.key)) {
                     dk.add(e.key);

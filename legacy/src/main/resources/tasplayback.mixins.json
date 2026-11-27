@@ -4,6 +4,23 @@
   "package": "dev.dbenton.tasplayback.legacy.mixin",
   "refmap": "${refmap}",
   "compatibilityLevel": "JAVA_8",
-  "client": ["MinecraftMixin"],
+  "client": [
+    "EntityAccessor",
+    "EntityLegacyMixin",
+    "EntityLivingBaseAccessor",
+    "EntityPlayerSPAccessor",
+    "EntityPlayerSPLegacyMixin",
+    "EntityRendererLegacyMixin",
+    "GuiMainMenuLegacyMixin",
+    "ItemRendererAccessor",
+    "MinecraftAccessor",
+    "MinecraftLegacyMixin",
+    "MinecraftMixin",
+    "NetworkManagerLegacyMixin",
+    "PacketThreadUtilLegacyMixin",
+    "PlayerControllerMPAccessor",
+    "PlayerControllerMPLegacyMixin",
+    "WorldLegacyMixin"
+  ],
   "injectors": { "defaultRequire": 1 }
 }

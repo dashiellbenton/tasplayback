@@ -70,6 +70,18 @@ class SegmentFeedTest {
     }
 
     @Test
+    void wholePacketsAreFedAtTheirOwnKeys() {
+        List<EventRecord> e = new ArrayList<>();
+        e.add(WorldEvents.packet(k(0, 0), new byte[] { 10 }));
+        e.add(WorldEvents.packet(k(0, 3), new byte[] { 11 }));
+        e.add(WorldEvents.packet(k(2, 9), new byte[] { 12 }));
+        SegmentFeed f = new SegmentFeed(e, key -> key.tick < 2);
+        assertEquals(Arrays.asList(10), ids(f.framesDue(0, 2)));
+        assertEquals(Arrays.asList(11), ids(f.framesDue(1, 100)));
+        assertTrue(f.framesDue(5, 100).isEmpty(), "packets after the branch point are never fed");
+    }
+
+    @Test
     void tickTrackReleasesRecordsPerTick() {
         List<EventRecord> h = new ArrayList<>();
         for (int t = 1; t <= 5; t++) h.add(new EventRecord(k(t, t * 3), HudEvents.PLAYER_TICK, new byte[] { (byte) t }));

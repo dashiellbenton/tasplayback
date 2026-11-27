@@ -42,6 +42,9 @@ public final class RecordingMeta {
     public String recordedAt = "";
     public int windowWidth, windowHeight, framebufferWidth, framebufferHeight, guiScale;
     public String language = "en_us";
+    /** The recording player's name and UUID (skins and name tags depend on them). Empty if unknown. */
+    public String playerName = "";
+    public String playerUuid = "";
     public final List<ResourcePack> resourcePacks = new ArrayList<>();
     /** Options that affect rendering (fov, bobView, fovEffectScale, distortionEffectScale, chat settings, volumes, ...). */
     public final Map<String, Object> renderOptions = new LinkedHashMap<>();
@@ -64,6 +67,8 @@ public final class RecordingMeta {
         win.put("guiScale", guiScale);
         m.put("window", win);
         m.put("language", language);
+        m.put("playerName", playerName);
+        m.put("playerUuid", playerUuid);
         List<Object> packs = new ArrayList<>();
         for (ResourcePack p : resourcePacks) {
             Map<String, Object> pm = new LinkedHashMap<>();
@@ -103,6 +108,8 @@ public final class RecordingMeta {
             m.guiScale = w.integer("guiScale", 0);
         }
         m.language = o.str("language", "en_us");
+        m.playerName = o.str("playerName", "");
+        m.playerUuid = o.str("playerUuid", "");
         for (Json.Obj p : o.objList("resourcePacks")) m.resourcePacks.add(new ResourcePack(p.str("id"), p.str("name", ""), p.str("sha1", "")));
         if (o.has("renderOptions")) m.renderOptions.putAll(o.obj("renderOptions").raw());
         for (Json.Obj t : o.objList("tickrateHistory")) {

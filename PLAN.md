@@ -151,6 +151,19 @@ Time key; eye position (double ×3, already interpolated); yaw, pitch, roll; FOV
 
 ---
 
+### 4.5 As built in M2 (refinements to §4 and §6)
+- **Camera and first person:** instead of overriding every render input, the recorder captures the local
+  player's render-relevant fields once per tick, and playback restores them after every replay tick and
+  sets the recorded partial tick. The vanilla renderer then interpolates exactly as it did while
+  recording. The final camera pose and FOV are still captured per frame, and override the renderer
+  where the version exposes a camera object (1.21.11).
+- **World stream:** where the singleplayer channel carries encoded bytes (1.20.5+; verified on 1.21.11),
+  raw frames are teed and replayed through a vanilla in-memory pipeline (`RAW_FRAME` + `DELIVER`).
+  Where it carries packet objects (verified on 1.12.2), each packet is encoded when the main thread
+  handles it (`PACKET`). Either way, recordings start at world join.
+- **Tick axis:** `TimeKey.tick` counts the client's level ticks within a segment (connection);
+  segments are linked through `segments.json`.
+
 ## 5. Recording rules: never change the game
 
 Each hook is **read-only and side-effect-free**. The checklist for every mixin:

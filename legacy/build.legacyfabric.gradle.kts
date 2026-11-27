@@ -48,6 +48,7 @@ dependencies {
 
 loom {
     runConfigs.all {
+        (findProperty("taspJvm") as String?)?.split(' ')?.filter { it.isNotBlank() }?.let { vmArgs(it) }
         ideConfigGenerated(false)
         runDir = "../../../run/1.12.2-legacyfabric"
     }

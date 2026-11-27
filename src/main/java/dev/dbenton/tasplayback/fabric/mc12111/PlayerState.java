@@ -47,6 +47,8 @@ final class PlayerState {
             b.writeFloat(p.xBob); b.writeFloat(p.yBob); b.writeFloat(p.xBobO); b.writeFloat(p.yBobO);
             ClientAvatarStateAccessor av = (ClientAvatarStateAccessor) p.avatarState();
             b.writeFloat(av.tasp$walkDist()); b.writeFloat(av.tasp$walkDistO()); b.writeFloat(av.tasp$bob()); b.writeFloat(av.tasp$bobO());
+            b.writeDouble(av.tasp$xCloak()); b.writeDouble(av.tasp$yCloak()); b.writeDouble(av.tasp$zCloak()); // cape motion
+            b.writeDouble(av.tasp$xCloakO()); b.writeDouble(av.tasp$yCloakO()); b.writeDouble(av.tasp$zCloakO());
             WalkAnimationStateAccessor wa = (WalkAnimationStateAccessor) p.walkAnimation;
             b.writeFloat(wa.tasp$speedOld()); b.writeFloat(wa.tasp$speed()); b.writeFloat(wa.tasp$position());
             b.writeFloat(p.attackAnim); b.writeFloat(p.oAttackAnim);
@@ -114,6 +116,8 @@ final class PlayerState {
             p.xBob = b.readFloat(); p.yBob = b.readFloat(); p.xBobO = b.readFloat(); p.yBobO = b.readFloat();
             ClientAvatarStateAccessor av = (ClientAvatarStateAccessor) p.avatarState();
             av.tasp$setWalkDist(b.readFloat()); av.tasp$setWalkDistO(b.readFloat()); av.tasp$setBob(b.readFloat()); av.tasp$setBobO(b.readFloat());
+            av.tasp$setxCloak(b.readDouble()); av.tasp$setyCloak(b.readDouble()); av.tasp$setzCloak(b.readDouble());
+            av.tasp$setxCloakO(b.readDouble()); av.tasp$setyCloakO(b.readDouble()); av.tasp$setzCloakO(b.readDouble());
             WalkAnimationStateAccessor wa = (WalkAnimationStateAccessor) p.walkAnimation;
             wa.tasp$setSpeedOld(b.readFloat()); wa.tasp$setSpeed(b.readFloat()); wa.tasp$setPosition(b.readFloat());
             p.attackAnim = b.readFloat(); p.oAttackAnim = b.readFloat();

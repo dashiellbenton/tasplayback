@@ -29,6 +29,7 @@ minecraft {
     mcpMappingVersion = sc.properties.get("deps.mcp_version")
     username = "Developer"
     extraRunJvmArguments.addAll("-Dmixin.debug.export=true", "-Dmixin.checks.interfaces=true")
+    (findProperty("taspJvm") as String?)?.split(' ')?.filter { it.isNotBlank() }?.let { extraRunJvmArguments.addAll(it) }
 }
 
 repositories {

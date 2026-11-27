@@ -14,7 +14,13 @@ public final class TASPlaybackLegacy {
 
     private TASPlaybackLegacy() {}
 
-    public static void onClientInit(String loader, String modVersion) {
-        LOGGER.info(TASPlaybackCore.describe(loader, MC_VERSION, modVersion));
+    private static LoaderGlue glue;
+
+    public static LoaderGlue glue() { return glue; }
+
+    public static void onClientInit(LoaderGlue loaderGlue) {
+        glue = loaderGlue;
+        LOGGER.info(TASPlaybackCore.describe(loaderGlue.loader(), MC_VERSION, loaderGlue.modVersion()));
+        Runtime.getRuntime().addShutdownHook(new Thread(() -> LegacyClient.get().onShutdown(), "TASPlayback-Shutdown"));
     }
 }

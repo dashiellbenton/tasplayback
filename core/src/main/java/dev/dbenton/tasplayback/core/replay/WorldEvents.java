@@ -20,6 +20,12 @@ public final class WorldEvents {
 
     public static final int RAW_FRAME = 1;
     public static final int DELIVER = 2;
+    /**
+     * A whole packet, encoded with the game's codec, recorded when the main thread handled it. Used where the
+     * singleplayer channel carries packet objects instead of bytes (1.12.2 - 1.20.4). Equivalent to a
+     * RAW_FRAME immediately followed by its DELIVER.
+     */
+    public static final int PACKET = 3;
 
     public static EventRecord rawFrame(TimeKey key, long seq, byte[] data, int off, int len) {
         ByteSink s = new ByteSink(len + 10);
@@ -30,6 +36,10 @@ public final class WorldEvents {
 
     public static EventRecord deliver(TimeKey key, long seq) {
         return new EventRecord(key, DELIVER, new ByteSink(10).writeVarLong(seq).toByteArray());
+    }
+
+    public static EventRecord packet(TimeKey key, byte[] encoded) {
+        return new EventRecord(key, PACKET, encoded);
     }
 
     public static long seqOf(EventRecord e) {

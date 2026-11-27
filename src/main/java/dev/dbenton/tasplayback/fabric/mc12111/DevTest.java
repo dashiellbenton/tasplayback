@@ -44,6 +44,7 @@ final class DevTest {
     private static int phase; // 0 = waiting for title, 1 = world requested, 2 = in world, 3 = done
     private static int t;
     private static int waited;
+    private static int settle;
 
     private DevTest() {}
 
@@ -63,6 +64,8 @@ final class DevTest {
                 if (mc.player != null && mc.level != null && mc.screen == null && mc.player.connection.hasClientLoaded()) { phase = 2; t = 0; }
                 break;
             case 2:
+                // hold the script until the client has received the /tp from tick 2 (server-thread timing varies)
+                if (t == 3 && (Math.abs(mc.player.getX() - 0.5) > 1e-9 || Math.abs(mc.player.getZ() - 0.5) > 1e-9 || ++settle < 5)) break;
                 script(mc, mc.player, t++);
                 break;
             default:

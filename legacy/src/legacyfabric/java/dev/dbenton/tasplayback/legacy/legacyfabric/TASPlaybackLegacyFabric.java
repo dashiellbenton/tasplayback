@@ -8,8 +8,13 @@ import net.fabricmc.loader.api.FabricLoader;
 public final class TASPlaybackLegacyFabric implements ClientModInitializer {
     @Override
     public void onInitializeClient() {
-        String version = FabricLoader.getInstance().getModContainer(TASPlaybackCore.MOD_ID)
+        final String version = FabricLoader.getInstance().getModContainer(TASPlaybackCore.MOD_ID)
                 .map(c -> c.getMetadata().getVersion().getFriendlyString()).orElse("?");
-        TASPlaybackLegacy.onClientInit("legacyfabric", version);
+        TASPlaybackLegacy.onClientInit(new dev.dbenton.tasplayback.legacy.LoaderGlue() {
+            @Override public String loader() { return "legacyfabric"; }
+            @Override public String modVersion() { return version; }
+            @Override public java.nio.file.Path gameDir() { return FabricLoader.getInstance().getGameDir(); }
+            @Override public void prepareReplayChannel(io.netty.channel.Channel channel, net.minecraft.network.NetworkManager manager) { }
+        });
     }
 }

@@ -27,7 +27,7 @@ class RecorderArchiveTest {
 
     static RecordingMeta meta() {
         RecordingMeta m = new RecordingMeta();
-        m.minecraftVersion = "1.21.11"; m.loader = "fabric"; m.modVersion = "test"; m.recordedAt = "2026-11-27T12:00:00Z";
+        m.minecraftVersion = "1.21.11"; m.loader = "fabric"; m.playerName = "Tas"; m.playerUuid = "00000000-0000-0000-0000-000000000001"; m.modVersion = "test"; m.recordedAt = "2026-11-27T12:00:00Z";
         m.windowWidth = 854; m.windowHeight = 480; m.framebufferWidth = 854; m.framebufferHeight = 480; m.guiScale = 2;
         m.resourcePacks.add(new RecordingMeta.ResourcePack("vanilla", "Default", ""));
         m.resourcePacks.add(new RecordingMeta.ResourcePack("file/faithful.zip", "Faithful", "ab12"));
@@ -80,6 +80,7 @@ class RecorderArchiveTest {
         assertTrue(TaspArchive.pack(part, tasp).isEmpty());
         TaspArchive.Recording r = TaspArchive.open(tasp);
         assertEquals("1.21.11", r.meta.minecraftVersion);
+        assertEquals("00000000-0000-0000-0000-000000000001", r.meta.playerUuid);
         assertEquals(2, r.meta.resourcePacks.size());
         assertEquals("ab12", r.meta.resourcePacks.get(1).sha1);
         assertEquals(true, r.meta.renderOptions.get("bobView"));
