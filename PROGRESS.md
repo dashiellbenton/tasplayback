@@ -3,8 +3,8 @@
 | Milestone | Status |
 |---|---|
 | Plan | Approved 2026-11-27 (decisions in PLAN.md §12) |
-| **0 Build skeleton** | **Done, awaiting your review** |
-| 1 core | not started |
+| 0 Build skeleton | Done |
+| **1 core** | **Done** |
 | 2 Vertical slice (1.21.11, 1.12.2-forge, 1.12.2-legacyfabric) | not started |
 | 3 GUI Tier 1 | not started |
 | 4 Sound | not started |
@@ -29,6 +29,61 @@ smoke mixin line (proving mixin + remapping work), and reached the title screen 
 | 26.3 | Fabric, Loom 1.19.4 (no remap), unobfuscated | 25 | ✅ | `net/minecraft/client/Minecraft` | ✅ | headless needs `SDL_VIDEO_FORCE_EGL=1` (see below) |
 
 Evidence: `docs/m0/smoke-contact-sheet.jpg` (title screens of all seven, in table order).
+
+## Milestone 1 report: `core`
+
+### What works
+Everything below is pure Java 8 with no dependencies outside the JDK and no Minecraft imports
+(`core/src/main/java/dev/dbenton/tasplayback/core`). It is shaded into all 7 jars.
+
+| Package | What it does |
+|---|---|
+| `io`, `json` | Bounds-checked binary I/O with varints. A small strict JSON reader and writer. |
+| `time` | `GameTime` and `TimeKey (segment, tick, partial, frame)` with recording order and game order. |
+| `format` | The `.tasp` container: stream ids, chunk layout with CRCs, `StreamWriter`, a recovering `StreamReader`, `AsyncRecorder` (writer thread, bounded queue, game threads never block), `RecordingMeta` (including resource-pack mismatch warnings), markers, and `TaspArchive` (open a `.tasp` or a `.part` directory, pack, recover). |
+| `frame` | `FrameRecord`, the full per-frame camera, hand, mouse and input state from PLAN §4.3, plus a lossless delta codec (floats stored as XOR of their raw bits, so values round-trip bit-exactly). Under 100 bytes per frame after compression on the synthetic test data (enforced by a test; real recordings will be measured in M2). |
+| `event`, `sound` | The generic event stream codec. `SoundEvent` PLAY/UPDATE/STOP/STOP_ALL carrying the resolved variant, attenuation, seed and delay. |
+| `branch` | `SegmentGraph` (`segments.json`) and `CanonicalResolver`: drops rewound branches, walks past ancestors that began after the link point, and supports user overrides (choose the final segment, re-link, mark a false positive). |
+| `timeline` | `PlaybackClock`: game time maps to output seconds at any TPS and speed. Frozen spans are skipped by default; hold-for-wall-time and hold-fixed are options. Sounds between frames land at their exact tick. `Interp`: shortest-arc angles, step semantics for discrete state. |
+| `audio` | `OfflineMixer`: 48 kHz stereo, rendered block-sequentially so long exports stream to disk. Sample-exact starts, OpenAL-style linear distance model, constant-power panning from the listener's right vector, pitch resampling, loops, stops and per-tick updates. Plus a streaming `WavWriter` (16-bit or 32-bit float). |
+| `export` | `FfmpegCommand`: an argument-vector builder (no shell) for raw-RGBA stdin, the WAV input, codec/CRF/preset, vflip, rational FPS and image sequences. |
+
+The file format is written up in `docs/tasp-format.md`.
+
+### How I verified it
+`./gradlew :core:test :core:testJava8`: **54 tests, all passing on both Java 21 and Java 8** (Azul 8u, the
+runtime of the 1.12.2–1.16.5 nodes). `buildAll` now depends on both test runs. Highlights:
+- **Audio sync (the PLAN's required test):** for 24, 30, 60 and 144 fps, a click on frame N of a 2-TPS
+  recording goes through `PlaybackClock` to `OfflineMixer` and its first non-zero output sample is exactly
+  at `round(N / fps × 48000)` (within 1 sample, from float rounding of the partial tick). Starts are
+  sample-exact for any block alignment and for 48k, 44.1k and 22.05k sources, and rendering in pieces is
+  bit-identical to rendering in one go.
+- **Crash recovery:** 300 random truncation points and 200 random byte flips. The reader always keeps
+  exactly the chunks before the damage and decodes them bit-exactly. A simulated crash (status still
+  "recording", frames file cut mid-chunk) recovers, and packing it produces a clean archive.
+- **Round-trips:** 5000 frames across 16 chunks are bit-exact, as are events, sound payloads, `meta.json`,
+  `segments.json` and `markers.json`.
+- **Branch resolution:** single segment; simple rewind; rewind to before the current segment's start;
+  nested rewind; rewind to a state saved in an already discarded branch; promote a branch; re-link;
+  false-positive boundary; partial-tick link points.
+- **Never blocking the game:** flooding a recorder with an 8-slot queue (20,000 frames plus 20,000 4 KiB
+  GUI-capture records). Every record is either written or counted as dropped, the GUI-capture stream is
+  dropped first, and no single offer took longer than 50 ms. (That ceiling only catches gross blocking;
+  the actual non-blocking guarantee comes from `ArrayBlockingQueue.offer`.)
+- **Fuzzing:** 20,000 random inputs each into the frame, event, sound and whole-stream decoders. Only
+  `FormatException` is allowed. This found and fixed one bug: a corrupt event type surfaced as
+  `IllegalArgumentException`.
+
+### Open risks and deferred items
+- **The mixer's model parameters are placeholders until M4:** linear distance with reference 0, rolloff 1,
+  max = attenuation distance, and constant-power panning. I'll confirm them against each version's sound
+  engine and OpenAL setup in the decompiled sources. Timing is exact; the mix is approximate (as stated
+  in the plan).
+- **Not built yet:** the pure-Java Vorbis decoder (needed to feed the mixer real OGGs) comes in M4. I'll
+  check its license before vendoring it. The settings model will be built alongside the UI that uses it
+  (M5/M8).
+- `TaspArchive.open` reads whole streams into memory. That's fine for hours of frames (tens of MB), but
+  `world.bin` for long runs may need streaming chunk access during M2's world reconstruction.
 
 ## Milestone 0 report
 
@@ -86,3 +141,4 @@ Evidence: `docs/m0/smoke-contact-sheet.jpg` (title screens of all seven, in tabl
 - 2026-11-27: Re-checked toolchain versions (Stonecutter 0.10, Loom 1.19.4, loom-back-compat 0.4.3,
   RFG 2.0.6, MixinBooter 12.5, Gradle 9.9.2). Wrote PLAN.md. Plan approved with decisions in PLAN.md §12.
 - 2026-11-27: Milestone 0. One build, 7 nodes, all boot headless. Details above.
+- 2026-11-27: Milestone 1. `core` complete, 54 tests green on Java 21 and Java 8. Details above.

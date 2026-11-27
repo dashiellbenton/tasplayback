@@ -124,7 +124,7 @@ The **1.12.2 implementation (§3.3)** is a separate code tree written against MC
 
 ### 4.1 Game time
 - `GameTime { long tick; float partial; }`, plus a global monotonically increasing `frameIndex` and a `segmentId`.
-- The ordering key is `(segmentId, tick, partial, frameIndex)`. `frameIndex` breaks ties when several frames render at the same game time, which happens all the time at low tickrates and while frozen. Wall-clock nanoseconds are stored per frame **only as metadata**.
+- Every record carries the key `(segmentId, tick, partial, frameIndex)`. `frameIndex` breaks ties when several frames render at the same game time, which happens all the time at low tickrates and while frozen. *(Refined in M1: the key defines two orders. Recording order is frame index first. Game order, `(tick, partial, frameIndex)`, only applies within one segment. Order across segments comes from branch resolution, not from segment ids.)* Wall-clock nanoseconds are stored per frame **only as metadata**.
 - **Frozen or paused game time.** When the tickrate is 0, or `/tick freeze` is on, many frames share one `GameTime`. Playback speed applies to game time, so these frames would collapse to zero duration. Playback offers a "frozen-span policy": *collapse* (the default for TAS output), *hold at recorded wall duration*, or *hold N frames*. GUI-only interaction while frozen (moving items in a paused inventory) would otherwise vanish, so that span uses a secondary "GUI clock" based on frame count.
 
 ### 4.2 `.tasp` container

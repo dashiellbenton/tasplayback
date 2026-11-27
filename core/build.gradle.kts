@@ -14,3 +14,14 @@ dependencies {
 }
 
 tasks.test { useJUnitPlatform() }
+
+// core ships inside the Java 8 nodes (1.12.2 - 1.16.5): run the same tests on a Java 8 JVM too.
+val testJava8 by tasks.registering(Test::class) {
+    description = "Runs the core tests on Java 8"
+    group = "verification"
+    useJUnitPlatform()
+    testClassesDirs = sourceSets.test.get().output.classesDirs
+    classpath = sourceSets.test.get().runtimeClasspath
+    javaLauncher = javaToolchains.launcherFor { languageVersion = JavaLanguageVersion.of(8) }
+}
+tasks.check { dependsOn(testJava8) }

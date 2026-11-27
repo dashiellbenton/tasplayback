@@ -13,6 +13,6 @@ stonecutter parameters {
 tasks.register("buildAll") {
     group = "build"
     description = "Builds every version node and collects the jars into dist/"
-    dependsOn(":core:test")
+    dependsOn(":core:test", ":core:testJava8")
     dependsOn(stonecutter.tasks.names("collectJar"))
 }
