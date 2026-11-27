@@ -82,9 +82,10 @@ Strings are a varint byte length followed by UTF-8.
 Each field is coded against the same field of the previous frame in the chunk (an all-zero record at
 the start of a chunk): integers as zigzag deltas, `f32`/`f64` as a varint of the XOR of the raw IEEE bits
 (lossless). Field order is defined by `FrameCodec` and listed in `FrameRecord`: the time key, wall
-nanoseconds, eye position, yaw/pitch/roll, FOV and FOV modifier, view-bob inputs, hurt tilt, portal and
+nanoseconds, camera position, yaw/pitch/roll, world FOV and hand FOV, view-bob inputs, hurt tilt, portal and
 nausea intensity, perspective, detached flag, hand animation state, held-item references, crosshair hit
-result, block-break progress, raw and GUI-scaled mouse position, mouse buttons, held keys (length + 1, or 0
+result, block-break progress, raw and GUI-scaled mouse position, mouse buttons, flags (1 cursor grabbed, 2 screen open, 4 GUI hidden,
+8 paused, 16 debug overlay), held keys (length + 1, or 0
 for "unchanged"), window and framebuffer size, GUI scale, optional framebuffer checksum, and a
 version-specific extension blob (length + 1, or 0 for "unchanged").
 

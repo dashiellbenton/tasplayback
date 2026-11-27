@@ -5,7 +5,8 @@ import dev.dbenton.tasplayback.core.time.TimeKey;
 import java.util.Arrays;
 
 /**
- * Everything captured once per rendered frame (PLAN.md §4.3). Version-neutral: values are the final
+ * Everything captured once per rendered frame (PLAN.md §4.3). {@code eyeX/Y/Z} is the final camera position
+ * (in third person: after the camera was pulled back). Version-neutral: values are the final
  * inputs the renderer used that frame, captured read-only. Mutable POJO with public fields so the
  * version layer can fill pooled instances without allocation churn.
  *
@@ -14,6 +15,8 @@ import java.util.Arrays;
  */
 public final class FrameRecord {
     public static final int HIT_MISS = 0, HIT_BLOCK = 1, HIT_ENTITY = 2;
+    /** {@link #flags} bits. */
+    public static final int FLAG_MOUSE_GRABBED = 1, FLAG_SCREEN_OPEN = 2, FLAG_HIDE_GUI = 4, FLAG_PAUSED = 8, FLAG_DEBUG_OVERLAY = 16;
     public static final int NO_ITEM = -1;
 
     public TimeKey key;
@@ -23,10 +26,10 @@ public final class FrameRecord {
     // camera
     public double eyeX, eyeY, eyeZ;
     public float yaw, pitch, roll;
-    /** Final FOV in degrees fed to the projection matrix. */
+    /** Final FOV in degrees fed to the world projection matrix (after FOV effects, underwater, death). */
     public float fov;
-    /** Dynamic FOV multiplier (sprint/speed/bow) that produced {@link #fov}. */
-    public float fovModifier;
+    /** Final FOV in degrees used for the first-person hand projection. */
+    public float handFov;
     public float walkDist, walkDistO, bob, bobO;
     public float hurtTime, hurtDir;
     public float portalIntensity, nauseaIntensity;
@@ -60,6 +63,8 @@ public final class FrameRecord {
     public double guiMouseX, guiMouseY;
     /** Bit i = mouse button i held. */
     public int mouseButtons;
+    /** FLAG_* bits: cursor grabbed, screen open, GUI hidden (F1), paused, debug overlay. */
+    public int flags;
     /** Key codes held this frame (for the input overlay), ascending. */
     public int[] keysHeld = new int[0];
 
@@ -81,7 +86,7 @@ public final class FrameRecord {
     public void copyFrom(FrameRecord o) {
         key = o.key; wallNanos = o.wallNanos;
         eyeX = o.eyeX; eyeY = o.eyeY; eyeZ = o.eyeZ;
-        yaw = o.yaw; pitch = o.pitch; roll = o.roll; fov = o.fov; fovModifier = o.fovModifier;
+        yaw = o.yaw; pitch = o.pitch; roll = o.roll; fov = o.fov; handFov = o.handFov;
         walkDist = o.walkDist; walkDistO = o.walkDistO; bob = o.bob; bobO = o.bobO;
         hurtTime = o.hurtTime; hurtDir = o.hurtDir; portalIntensity = o.portalIntensity; nauseaIntensity = o.nauseaIntensity;
         perspective = o.perspective; detached = o.detached;
@@ -91,7 +96,7 @@ public final class FrameRecord {
         hitType = o.hitType; hitX = o.hitX; hitY = o.hitY; hitZ = o.hitZ; hitFace = o.hitFace; hitEntity = o.hitEntity;
         breakProgress = o.breakProgress;
         mouseX = o.mouseX; mouseY = o.mouseY; guiMouseX = o.guiMouseX; guiMouseY = o.guiMouseY;
-        mouseButtons = o.mouseButtons; keysHeld = o.keysHeld.clone();
+        mouseButtons = o.mouseButtons; flags = o.flags; keysHeld = o.keysHeld.clone();
         windowW = o.windowW; windowH = o.windowH; framebufferW = o.framebufferW; framebufferH = o.framebufferH;
         guiScale = o.guiScale; framebufferChecksum = o.framebufferChecksum; ext = o.ext.clone();
     }
@@ -100,7 +105,7 @@ public final class FrameRecord {
     public boolean bitEquals(FrameRecord o) {
         return equalsKey(key, o.key) && wallNanos == o.wallNanos
                 && d(eyeX, o.eyeX) && d(eyeY, o.eyeY) && d(eyeZ, o.eyeZ)
-                && f(yaw, o.yaw) && f(pitch, o.pitch) && f(roll, o.roll) && f(fov, o.fov) && f(fovModifier, o.fovModifier)
+                && f(yaw, o.yaw) && f(pitch, o.pitch) && f(roll, o.roll) && f(fov, o.fov) && f(handFov, o.handFov)
                 && f(walkDist, o.walkDist) && f(walkDistO, o.walkDistO) && f(bob, o.bob) && f(bobO, o.bobO)
                 && f(hurtTime, o.hurtTime) && f(hurtDir, o.hurtDir) && f(portalIntensity, o.portalIntensity)
                 && f(nauseaIntensity, o.nauseaIntensity) && perspective == o.perspective && detached == o.detached
@@ -111,7 +116,7 @@ public final class FrameRecord {
                 && hitType == o.hitType && hitX == o.hitX && hitY == o.hitY && hitZ == o.hitZ && hitFace == o.hitFace
                 && hitEntity == o.hitEntity && f(breakProgress, o.breakProgress)
                 && d(mouseX, o.mouseX) && d(mouseY, o.mouseY) && d(guiMouseX, o.guiMouseX) && d(guiMouseY, o.guiMouseY)
-                && mouseButtons == o.mouseButtons && Arrays.equals(keysHeld, o.keysHeld)
+                && mouseButtons == o.mouseButtons && flags == o.flags && Arrays.equals(keysHeld, o.keysHeld)
                 && windowW == o.windowW && windowH == o.windowH && framebufferW == o.framebufferW && framebufferH == o.framebufferH
                 && guiScale == o.guiScale && framebufferChecksum == o.framebufferChecksum && Arrays.equals(ext, o.ext);
     }

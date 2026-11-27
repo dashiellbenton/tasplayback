@@ -10,7 +10,7 @@
   "entrypoints": {
     "client": ["dev.dbenton.tasplayback.fabric.TASPlaybackFabric"]
   },
-  "mixins": ["tasplayback.mixins.json"],
+  "mixins": [${mixins}],
   "depends": {
     "fabricloader": ">=0.15.0",
     "minecraft": "${minecraft}",

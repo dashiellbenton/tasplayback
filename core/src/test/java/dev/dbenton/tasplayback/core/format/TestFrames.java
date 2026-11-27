@@ -30,7 +30,7 @@ public final class TestFrames {
             f.wallNanos = 1_000_000_000L + i * 16_666_667L + r.nextInt(100_000);
             f.eyeX = 100.5 + tick * 0.1 + partial * 0.1; f.eyeY = 64.62; f.eyeZ = -200.25 - r.nextDouble() * 1e-9;
             f.yaw = yaw; f.pitch = pitch; f.roll = 0f;
-            f.fov = 70f + (r.nextInt(50) == 0 ? 10f : 0f); f.fovModifier = 1.0f + r.nextFloat() * 0.15f;
+            f.fov = 70f + (r.nextInt(50) == 0 ? 10f : 0f); f.handFov = 70f; f.flags = r.nextInt(30) == 0 ? FrameRecord.FLAG_SCREEN_OPEN : FrameRecord.FLAG_MOUSE_GRABBED;
             f.walkDist = tick * 0.4f; f.walkDistO = f.walkDist - 0.4f; f.bob = r.nextFloat() * 0.1f; f.bobO = f.bob * 0.9f;
             f.hurtTime = r.nextInt(30) == 0 ? 10f : 0f; f.hurtDir = r.nextFloat() * 360f;
             f.portalIntensity = 0f; f.nauseaIntensity = r.nextInt(100) == 0 ? 0.5f : 0f;

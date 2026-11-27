@@ -40,7 +40,7 @@ public final class FrameCodec implements StreamCodec<FrameRecord> {
         l(o, r.wallNanos, p.wallNanos);
         d(o, r.eyeX, p.eyeX); d(o, r.eyeY, p.eyeY); d(o, r.eyeZ, p.eyeZ);
         f(o, r.yaw, p.yaw); f(o, r.pitch, p.pitch); f(o, r.roll, p.roll);
-        f(o, r.fov, p.fov); f(o, r.fovModifier, p.fovModifier);
+        f(o, r.fov, p.fov); f(o, r.handFov, p.handFov);
         f(o, r.walkDist, p.walkDist); f(o, r.walkDistO, p.walkDistO); f(o, r.bob, p.bob); f(o, r.bobO, p.bobO);
         f(o, r.hurtTime, p.hurtTime); f(o, r.hurtDir, p.hurtDir);
         f(o, r.portalIntensity, p.portalIntensity); f(o, r.nauseaIntensity, p.nauseaIntensity);
@@ -53,7 +53,7 @@ public final class FrameCodec implements StreamCodec<FrameRecord> {
         i(o, r.hitType, p.hitType); i(o, r.hitX, p.hitX); i(o, r.hitY, p.hitY); i(o, r.hitZ, p.hitZ);
         i(o, r.hitFace, p.hitFace); i(o, r.hitEntity, p.hitEntity); f(o, r.breakProgress, p.breakProgress);
         d(o, r.mouseX, p.mouseX); d(o, r.mouseY, p.mouseY); d(o, r.guiMouseX, p.guiMouseX); d(o, r.guiMouseY, p.guiMouseY);
-        i(o, r.mouseButtons, p.mouseButtons);
+        i(o, r.mouseButtons, p.mouseButtons); i(o, r.flags, p.flags);
         if (Arrays.equals(r.keysHeld, p.keysHeld)) {
             o.writeVarInt(0);
         } else {
@@ -82,7 +82,7 @@ public final class FrameCodec implements StreamCodec<FrameRecord> {
         r.wallNanos = l(in, p.wallNanos);
         r.eyeX = d(in, p.eyeX); r.eyeY = d(in, p.eyeY); r.eyeZ = d(in, p.eyeZ);
         r.yaw = f(in, p.yaw); r.pitch = f(in, p.pitch); r.roll = f(in, p.roll);
-        r.fov = f(in, p.fov); r.fovModifier = f(in, p.fovModifier);
+        r.fov = f(in, p.fov); r.handFov = f(in, p.handFov);
         r.walkDist = f(in, p.walkDist); r.walkDistO = f(in, p.walkDistO); r.bob = f(in, p.bob); r.bobO = f(in, p.bobO);
         r.hurtTime = f(in, p.hurtTime); r.hurtDir = f(in, p.hurtDir);
         r.portalIntensity = f(in, p.portalIntensity); r.nauseaIntensity = f(in, p.nauseaIntensity);
@@ -95,7 +95,7 @@ public final class FrameCodec implements StreamCodec<FrameRecord> {
         r.hitType = i(in, p.hitType); r.hitX = i(in, p.hitX); r.hitY = i(in, p.hitY); r.hitZ = i(in, p.hitZ);
         r.hitFace = i(in, p.hitFace); r.hitEntity = i(in, p.hitEntity); r.breakProgress = f(in, p.breakProgress);
         r.mouseX = d(in, p.mouseX); r.mouseY = d(in, p.mouseY); r.guiMouseX = d(in, p.guiMouseX); r.guiMouseY = d(in, p.guiMouseY);
-        r.mouseButtons = i(in, p.mouseButtons);
+        r.mouseButtons = i(in, p.mouseButtons); r.flags = i(in, p.flags);
         int nk = in.readVarInt();
         if (nk == 0) {
             r.keysHeld = p.keysHeld.clone();

@@ -36,7 +36,7 @@ public final class Interp {
         if (t >= 1f) { r.copyFrom(b); return r; }
         r.eyeX = lerp(a.eyeX, b.eyeX, t); r.eyeY = lerp(a.eyeY, b.eyeY, t); r.eyeZ = lerp(a.eyeZ, b.eyeZ, t);
         r.yaw = lerpAngle(a.yaw, b.yaw, t); r.pitch = lerpAngle(a.pitch, b.pitch, t); r.roll = lerpAngle(a.roll, b.roll, t);
-        r.fov = lerp(a.fov, b.fov, t); r.fovModifier = lerp(a.fovModifier, b.fovModifier, t);
+        r.fov = lerp(a.fov, b.fov, t); r.handFov = lerp(a.handFov, b.handFov, t);
         r.walkDist = lerp(a.walkDist, b.walkDist, t); r.walkDistO = lerp(a.walkDistO, b.walkDistO, t);
         r.bob = lerp(a.bob, b.bob, t); r.bobO = lerp(a.bobO, b.bobO, t);
         r.hurtTime = lerp(a.hurtTime, b.hurtTime, t); r.hurtDir = lerpAngle(a.hurtDir, b.hurtDir, t);

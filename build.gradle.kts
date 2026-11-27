@@ -11,6 +11,19 @@ val mcVersion: String = sc.current.version
 val javaVersion: Int = sc.properties.get("mod.java").toInt()
 
 version = "$modVersion+$mcVersion"
+
+// Large per-era differences live in their own packages (fabric/<era>/) with their own mixin config.
+// A node compiles only its era; nodes without one get the common bootstrap only (until ported, see PLAN M6).
+val allEras = listOf("mc12111")
+val era: String? = when (mcVersion) {
+    "1.21.11" -> "mc12111"
+    else -> null
+}
+sourceSets.main {
+    java { allEras.filter { it != era }.forEach { exclude("dev/dbenton/tasplayback/fabric/$it/**") } }
+    resources { allEras.filter { it != era }.forEach { exclude("tasplayback.$it.mixins.json") } }
+}
+val mixinConfigs = listOf("tasplayback.mixins.json") + listOfNotNull(era?.let { "tasplayback.$it.mixins.json" })
 base.archivesName = modId
 
 repositories { mavenCentral() }
@@ -37,6 +50,8 @@ dependencies {
 
 loom {
     runConfigs.all {
+        // Extra client JVM args for scripted test runs: ./gradlew :<node>:runClient -PtaspJvm="-Dtasplayback.devtest=a ..."
+        (findProperty("taspJvm") as String?)?.split(' ')?.filter { it.isNotBlank() }?.let { vmArgs(it) }
         isIdeConfigGenerated = false
         runDirectory = rootProject.layout.projectDirectory.dir("run/$mcVersion")
     }
@@ -63,6 +78,7 @@ tasks {
             "license" to sc.properties["mod.license"],
             "minecraft" to sc.properties["mod.mc_compat"],
             "java" to javaVersion.toString(),
+            "mixins" to mixinConfigs.joinToString(", ") { "\"$it\"" },
         )
         inputs.properties(props)
         filesMatching(listOf("fabric.mod.json", "*.mixins.json")) { expand(props) }
