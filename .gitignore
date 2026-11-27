@@ -6,3 +6,8 @@ build/
 *.iml
 out/
 .kotlin/
+versions/*/build/
+legacy/versions/*/build/
+legacy/build/
+**/build/
+run/

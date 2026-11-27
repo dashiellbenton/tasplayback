@@ -1,0 +1,9 @@
+{
+  "required": true,
+  "minVersion": "0.7.11",
+  "package": "dev.dbenton.tasplayback.legacy.mixin",
+  "refmap": "${refmap}",
+  "compatibilityLevel": "JAVA_8",
+  "client": ["MinecraftMixin"],
+  "injectors": { "defaultRequire": 1 }
+}

@@ -1,0 +1,43 @@
+# Shared and per-node build properties (Stonecutter structured properties).
+mod.id = "tasplayback"
+mod.name = "TASPlayback"
+mod.group = "dev.dbenton.tasplayback"
+mod.version = "0.0.1"
+mod.description = "Frame-exact recording and playback of TAS runs: camera, GUI, mouse, HUD and sound against game time."
+mod.license = "LGPL-3.0-or-later"
+
+deps.fabric_loader = "0.20.1"
+
+["1.14.4"]
+mod.mc_compat = "1.14.4"
+mod.java = 8
+
+["1.16.5"]
+mod.mc_compat = ">=1.16.2 <=1.16.5"
+mod.java = 8
+
+["1.20.1"]
+mod.mc_compat = ">=1.20 <=1.20.1"
+mod.java = 17
+
+["1.21.11"]
+mod.mc_compat = "1.21.11"
+mod.java = 21
+
+["26.3"]
+mod.mc_compat = "~26.3"
+mod.java = 25
+
+["1.12.2-forge"]
+mod.mc_compat = "1.12.2"
+mod.java = 8
+deps.forge = "14.23.5.2847"
+deps.mixinbooter = "12.5"
+deps.mcp_channel = "stable"
+deps.mcp_version = "39"
+
+["1.12.2-legacyfabric"]
+mod.mc_compat = "1.12.2"
+mod.java = 8
+deps.legacy_looming = "1.16.1"
+deps.lf_mappings = "1.12.2+build.mcp"

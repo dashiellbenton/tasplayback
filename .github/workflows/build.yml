@@ -1,0 +1,58 @@
+name: build
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      # Gradle's launcher needs a JVM; the daemon JVM (25) is then provisioned from
+      # gradle/gradle-daemon-jvm.properties and per-node toolchains (8/16/17/21/25) via foojay.
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: |
+            8
+            17
+            21
+            25
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Build every node
+        run: ./gradlew buildAll --console=plain --stacktrace
+      - uses: actions/upload-artifact@v4
+        with:
+          name: tasplayback-jars
+          path: dist/*.jar
+
+  # Headless boot of every node's dev client (opt-in: run manually from the Actions tab).
+  smoke:
+    if: github.event_name == 'workflow_dispatch'
+    needs: build
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        node: [":legacy:1.12.2-forge", ":legacy:1.12.2-legacyfabric", ":1.14.4", ":1.16.5", ":1.20.1", ":1.21.11", ":26.3"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: |
+            8
+            17
+            21
+            25
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Install headless X, Mesa and xrandr
+        run: sudo apt-get update && sudo apt-get install -y xvfb x11-xserver-utils mesa-utils libgl1-mesa-dri imagemagick
+      - name: Boot client
+        run: scripts/smoke-boot.sh "${{ matrix.node }}" build/smoke
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: smoke-${{ strategy.job-index }}
+          path: build/smoke/

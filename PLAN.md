@@ -1,6 +1,8 @@
 # TASPlayback — Implementation Plan
 
-Status: **DRAFT, waiting for approval.** No code until this plan is OK'd.
+Status: **APPROVED 2026-11-27.** Decisions recorded in §12.
+
+**Scope guard:** TASPlayback is a *recording and playback* mod only. It never provides savestates, tickrate control, frame advance or input playback; it only observes the TAS tools that do (TASmod, LoTAS, vanilla `/tick`).
 
 TASPlayback records what the player sees and hears on the client, keyed to game time (ticks + partial ticks), not wall-clock time. It then plays that back, or renders it to video, at real-time 20 TPS (or any other speed), with exact camera, GUI, mouse, HUD, first-person rendering and sample-accurate sound. Rewound savestate branches are dropped automatically.
 
@@ -15,18 +17,18 @@ I checked these against the live Maven and Gradle metadata, not the prompt. Some
 | Stonecutter | 0.8.x | **0.10** (0.9.8 and 0.8.4 are older lines) | Pin `dev.kikugie.stonecutter` **0.10**. Use the v2 wiki docs only. |
 | Fabric Loom | 1.17 | **1.19.4** stable (1.20 is in alpha) | Pin **1.19.4**. |
 | Loom plugin split | `fabric-loom` (no remap) for 26.x, `fabric-loom-remap` before that | Same | Use **`dev.kikugie.loom-back-compat` 0.4.3**. It's Stonecutter's companion plugin, and it picks `net.fabricmc.fabric-loom` for ≥26 and `net.fabricmc.fabric-loom-remap` for <26. |
-| Gradle | 9.6.0 | **9.9.2** current. Loom 1.19 is built with 9.8. CleanroomMC TemplateDevEnv (RFG) is on **9.7**. | Gradle wrapper **9.8.x** (the newest version both are known to run on). Moving to 9.9 needs a quick check in M0. |
+| Gradle | 9.6.0 | **9.9.2** current. Loom 1.19 is built with 9.8. CleanroomMC TemplateDevEnv (RFG) is on **9.7**. | **M0 result:** wrapper **9.9.1** (what the official Stonecutter template uses) drives Loom 1.19.4, RFG 2.0.6 and legacy-looming 1.16.1 in one build. |
 | RetroFuturaGradle | — | **2.0.6** (RFG's own build uses Gradle 9.2; TemplateDevEnv pins 2.0.3 on Gradle 9.7) | Pin **2.0.6**, on a Java 21 Gradle JVM. Minecraft compiles and runs on a Java 8 toolchain. |
 | MixinBooter | — | **12.5** | Use it for 1.12.2 mixins. |
 | Forge 1.12.2 | 14.23.5.2847 | Same (final build) | Same. |
 | Fabric Loader | — | **0.20.1** | Build against it. At runtime require `>=0.15` on older nodes, so TAS packs with older loaders still work. |
 | Fabric API | — | Available on every node (for example `0.141.6+1.21.11` and `0.167.0+26.3`) | Optional. I'll use only a minimal set (keybinds, client lifecycle events) and fall back to mixins where an API module doesn't exist on an old node. |
 | Minecraft | latest 26.3 | Release manifest: 26.3, 26.2, 26.1.2, 26.1.1, 26.1, 1.21.11 … | Same as the prompt. |
-| Gradle JVM | Java 25 for 26.1+ | Same | **The Gradle daemon runs on Java 25.** That satisfies Loom on 26.x, and RFG/Loom on older nodes are happy on 25 too (M0 checks this). Toolchains provide 8, 16, 17, 21 and 25 for compiling and running each node. |
+| Gradle JVM | Java 25 for 26.1+ | Same, and **Stonecutter 0.10 itself requires a Java 25 daemon** | **The Gradle daemon runs on Java 25.** That satisfies Loom on 26.x, and RFG/Loom on older nodes are happy on 25 too (M0 checks this). Toolchains provide 8, 16, 17, 21 and 25 for compiling and running each node. |
 
 ### Findings that need your decision (see §12 "Open questions")
 
-1. **TASmod for 1.12.2 runs on LegacyFabric, not Forge.** Its README says so explicitly: "This mod uses the modloader LegacyFabric". LoTAS for 1.12.2 is Forge. A Forge-only 1.12.2 build can't be installed next to TASmod, which is the main 1.12.2 TAS tool with savestates and input playback. I propose an **optional `1.12.2-legacyfabric` node** that reuses the 1.12.2 implementation logic (§3.3). I need your call on whether it's in scope and in which milestone.
+1. **TASmod for 1.12.2 runs on LegacyFabric, not Forge.** *(Resolved: a `1.12.2-legacyfabric` node is in scope.)* Released TASmod (Beta2.x) is built with `legacy-looming` and `net.legacyfabric:yarn:1.12.2+build.mcp`, which gives MCP names on the LegacyFabric intermediary. Our node uses the same toolchain. TASmod's `develop` branch has moved to OrnitheMC `ploceus` with gen2 intermediary, which is incompatible with LegacyFabric's. If a TASmod release follows it, we add a `1.12.2-ornithe` node (buildscript only; the source is MCP-named either way).
 2. **ReplayMod is GPL-3.0-or-later.** I will **not copy any of its code**. The design ideas (packet capture, a fake connection that feeds a client world) are general techniques, and I'll write my own implementation from the decompiled game. Copying ReplayMod code would force this project to be GPL. I need you to pick the project license; I propose **LGPL-3.0** (or MIT).
 
 ---
@@ -42,7 +44,7 @@ tasplayback/
 ├─ gradle.properties            mod id/version, shared deps
 ├─ versions/<node>/gradle.properties    per-node MC version, java, deps, compat range
 ├─ core/                        plain Gradle subproject, Java 8, no Minecraft imports
-│   └─ src/main/java/dev/tasplayback/core/...
+│   └─ src/main/java/dev/dbenton/tasplayback/core/...
 │       format/   .tasp container, stream codecs, chunked writer and recovery
 │       timeline/ GameTime, frame index, sampling, interpolation
 │       branch/   segments, rewind graph, canonical-timeline resolution
@@ -55,10 +57,10 @@ tasplayback/
 │       SoundTap/SoundPlayer, PacketTap/ReplayConnection, FrameCapture,
 │       InputSource, ResourceAccess (for OGG lookup), TasToolBridge
 ├─ src/main/java/...            Stonecutter-versioned Fabric implementation (1.14.4 → 26.3)
-│   └─ dev/tasplayback/fabric/{common, era/...}
+│   └─ dev/dbenton/tasplayback/fabric/{common, era/...}
 ├─ src/main/resources/          fabric.mod.json (templated), mixins json, assets
 ├─ legacy/                      1.12.2 implementation (MCP names, LWJGL2), shares core + platform-api
-│   └─ src/main/java/dev/tasplayback/legacy/...
+│   └─ src/main/java/dev/dbenton/tasplayback/legacy/...
 └─ versions/                    created by Stonecutter
 ```
 
@@ -74,7 +76,7 @@ tasplayback/
   `version("1.12.2-forge", "1.12.2").buildscript = "build.forge.gradle.kts"`, with the Fabric nodes using `build.fabric.gradle.kts`.
 - The **1.12.2 code is not Stonecutter-preprocessed.** It lives in `legacy/`. The `1.12.2-forge` node's buildscript points its source set at `legacy/src` (plus `core` and `platform-api`). Stonecutter only provides the node and the unified tasks.
 - **Plugin isolation.** Loom and RFG both bring ASM, Guava and mapping libraries. Neither plugin is put on the settings or root classpath. Each is applied with its version in its own buildscript, so Gradle gives each project its own plugin classloader. M0 proves this works.
-- **One command:** `./gradlew buildAll`. It's a root task registered in `stonecutter.gradle.kts` that depends on `:<node>:build` for every node plus `:core:test`, and copies jars into `dist/`. (0.7 removed chiseled tasks; this is the 0.10 replacement.)
+- **One command:** `./gradlew buildAll`. It's a root task registered in `stonecutter.gradle.kts` that depends on every node's `collectJar` (via `stonecutter.tasks.names`) plus `:core:test`, and collects the jars into `dist/`. **M0 result: works; no fallback needed.** The 1.12.2 nodes live in a Stonecutter `legacy` branch with per-node buildscripts (`legacy/build.forge.gradle.kts`, `legacy/build.legacyfabric.gradle.kts`).
 - **Fallbacks, in order, if Loom and RFG can't share a build:**
   (a) Run 1.12.2 as an **included build** (`includeBuild("legacy")`) that compiles `core` from shared source dirs; `buildAll` depends on the included build's `build` task. It's still one command and one wrapper, but has its own plugin classpath. (This was the prompt's option (b). I'd try it first because it's the cleanest isolation.)
   (b) **Unimined 2.0.2** for 1.12.2. It's a single toolchain-agnostic plugin and is known to cooperate with Stonecutter, but its MCP/Forge 1.12.2 support is less battle-tested than RFG's.
@@ -112,7 +114,7 @@ One jar per API breakpoint. The `fabric.mod.json` `minecraft` range is templated
 | 26.1.x | 25 | 26.1–26.1.2 | unobfuscated, no-remap Loom |
 | 26.2 | 25 | 26.2 | |
 | 26.3 | 25 | 26.3 | SDL3: cursor/window/input path rewritten |
-| *1.12.2-legacyfabric* (proposed) | 8 | 1.12.2 | TASmod compatibility (see open question 1) |
+| 1.12.2-legacyfabric | 8 | 1.12.2 | TASmod compatibility (approved; built from M2 alongside Forge) |
 
 The **1.12.2 implementation (§3.3)** is a separate code tree written against MCP names. If the LegacyFabric node is approved, the logic is written once against a thin internal adapter, and two small shims bind it: Forge/MCP and LegacyFabric/legacy-yarn. The LegacyFabric node would use LegacyFabric's Loom setup. That's a separate M0-style risk.
 
@@ -245,9 +247,9 @@ After every milestone: update `PROGRESS.md`, commit, and push to `claude/vibrant
 
 ---
 
-## 12. Open questions for you
+## 12. Decisions (answered 2026-11-27)
 
-1. **Add a `1.12.2-legacyfabric` node** for TASmod users? If yes: in M2 alongside Forge, or in M7?
-2. **License:** LGPL-3.0 (my suggestion), MIT, or GPL-3.0? GPL-3.0 is the only choice that would let us borrow ReplayMod code; the plan doesn't need to.
-3. **Java package / mod id:** `dev.tasplayback` / `tasplayback`, unless you have a domain or group id to use.
-4. **Frozen-time playback default:** "collapse frozen spans" (§4.1), or "hold for recorded wall duration"?
+1. **`1.12.2-legacyfabric` node: yes.** Implemented in Milestone 2 alongside `1.12.2-forge`, so TASmod users are covered from the first vertical slice. In M0 the build skeleton already proves it builds.
+2. **License: LGPL-3.0-or-later** (`COPYING`, `COPYING.LESSER`). No ReplayMod code is copied.
+3. **Package / mod id:** `dev.dbenton.tasplayback` / `tasplayback`.
+4. **Frozen game-time spans are skipped** on playback/export by default ("collapse"); the hold options stay available as settings.
