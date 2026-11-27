@@ -40,6 +40,7 @@ final class RecordingSession {
     private final SegmentGraph graph = new SegmentGraph();
     private final InventoryTracker inventory = new InventoryTracker();
     private final PlayerState.StackMemo memo = new PlayerState.StackMemo();
+    private final MenuState menuState = new MenuState();
     private final int thumbnailEvery;
 
     private PacketTee tee;
@@ -117,6 +118,7 @@ final class RecordingSession {
         lastTickOfSegment = 0;
         nettyTick = 0;
         inventory.reset();
+        menuState.reset();
         memo.main = net.minecraft.world.item.ItemStack.EMPTY;
         memo.off = net.minecraft.world.item.ItemStack.EMPTY;
         final int seg = segment;
@@ -192,7 +194,19 @@ final class RecordingSession {
         }
     }
 
+    void onGuiEvent(Minecraft mc, int type, byte[] payload) {
+        if (segment < 0) return;
+        recorder.offerEvent(StreamId.GUI, new EventRecord(key(mc.getDeltaTracker().getGameTimeDeltaPartialTick(true)), type, payload));
+    }
+
     private void captureFrame(Minecraft mc, float worldFov, float handFov) {
+        if (mc.player.containerMenu != null && mc.getConnection() != null) {
+            byte[] menu = menuState.capture(mc.player.containerMenu, mc.getConnection().registryAccess());
+            if (menu != null) {
+                recorder.offerEvent(StreamId.GUI, new EventRecord(key(mc.getDeltaTracker().getGameTimeDeltaPartialTick(true)),
+                        dev.dbenton.tasplayback.core.replay.GuiEvents.MENU_STATE, menu));
+            }
+        }
         final TimeKey k = key(mc.getDeltaTracker().getGameTimeDeltaPartialTick(true));
         FrameRecord f = FrameCapture.capture(mc, k, worldFov, handFov);
         recorder.offerFrame(f);

@@ -62,6 +62,7 @@ public final class TaspClient {
         if (replay != null) return;
         if (recording == null && armed) {
             try {
+                DebugText.reset();
                 recording = RecordingSession.start(mc, recordingsDir(), thumbnailEvery);
                 TASPlaybackFabric.LOGGER.info("Recording to {}", recording.target());
             } catch (IOException e) {
@@ -82,6 +83,10 @@ public final class TaspClient {
         if (recording != null) recording.onTickEnd(mc);
         if (replay == null) pollRecordingKeys();
         maybeAutoplay();
+    }
+
+    void onGuiEvent(int type, byte[] payload) {
+        if (recording != null) recording.onGuiEvent(mc, type, payload);
     }
 
     public void onPredictedBlock(net.minecraft.core.BlockPos pos, net.minecraft.world.level.block.state.BlockState state, int flags, int depth) {
@@ -174,6 +179,7 @@ public final class TaspClient {
     public void startReplay(Path file, ReplaySession.Mode mode) {
         if (recording != null) stopRecording();
         try {
+            DebugText.reset();
             replay = new ReplaySession(mc, file, mode);
             // tutorial hints belong to the viewer, not to the recording
             savedTutorial = mc.options.tutorialStep;
@@ -215,7 +221,8 @@ public final class TaspClient {
     }
 
     private void pollReplayKeys(ReplaySession r) {
-        if (mc.screen != null) return;
+        // Viewer input never reaches the replayed screens (it is blocked), so the controls work with screens open too.
+        if (pressed(GLFW.GLFW_KEY_ESCAPE)) { stopReplay(); return; }
         if (pressed(GLFW.GLFW_KEY_SPACE)) r.togglePause();
         if (pressed(GLFW.GLFW_KEY_RIGHT)) r.step(1);
         if (pressed(GLFW.GLFW_KEY_LEFT)) r.step(-1);

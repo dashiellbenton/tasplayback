@@ -54,7 +54,10 @@ final class ReplaySession {
         final KeptRange kept;
         final SegmentFeed feed;
         final TickTrack hud;
-        Range(KeptRange kept, SegmentFeed feed, TickTrack hud) { this.kept = kept; this.feed = feed; this.hud = hud; }
+        final dev.dbenton.tasplayback.core.replay.KeyedTrack gui;
+        Range(KeptRange kept, SegmentFeed feed, TickTrack hud, dev.dbenton.tasplayback.core.replay.KeyedTrack gui) {
+            this.kept = kept; this.feed = feed; this.hud = hud; this.gui = gui;
+        }
     }
 
     private int rangeIdx = -1;
@@ -86,6 +89,7 @@ final class ReplaySession {
         this.clock = PlaybackClock.realTime(keys);
         List<EventRecord> world = rec.stream(StreamId.WORLD).decodeAll(new EventCodec());
         List<EventRecord> hud = rec.stream(StreamId.HUD).decodeAll(new EventCodec());
+        List<EventRecord> gui = rec.stream(StreamId.GUI).decodeAll(new EventCodec());
         for (EventRecord e : hud) {
             if (e.type == HudEvents.THUMBNAIL) {
                 HudEvents.Thumbnail t = HudEvents.Thumbnail.from(e);
@@ -97,7 +101,10 @@ final class ReplaySession {
             for (EventRecord e : world) if (e.key.segment == kr.segment) segWorld.add(e);
             List<EventRecord> segHud = new ArrayList<>();
             for (EventRecord e : hud) if (e.key.segment == kr.segment && e.type != HudEvents.THUMBNAIL) segHud.add(e);
-            ranges.add(new Range(kr, new SegmentFeed(segWorld, kr::contains), new TickTrack(segHud, e -> kr.contains(e.key))));
+            List<EventRecord> segGui = new ArrayList<>();
+            for (EventRecord e : gui) if (e.key.segment == kr.segment) segGui.add(e);
+            ranges.add(new Range(kr, new SegmentFeed(segWorld, kr::contains), new TickTrack(segHud, e -> kr.contains(e.key)),
+                    new dev.dbenton.tasplayback.core.replay.KeyedTrack(segGui, e -> kr.contains(e.key))));
         }
     }
 
@@ -122,8 +129,13 @@ final class ReplaySession {
         return rangeIdx;
     }
 
+    private final GuiReplay guiReplay = new GuiReplay();
+    private final MenuState menuState = new MenuState();
+
     private void feedDue(long frame) {
         Range r = ranges.get(rangeIdx);
+        // GUI input of a frame was polled before that frame's packets were processed: dispatch it first
+        for (EventRecord e : r.gui.due(tickCount, frame)) guiReplay.apply(mc, e, menuState);
         for (byte[] f : r.feed.framesDue(tickCount, frame)) conn.feed(f);
         conn.drainOutbound();
     }
@@ -195,6 +207,8 @@ final class ReplaySession {
             mc.options.setCameraType(types[f.perspective]);
         }
         mc.options.hideGui = (f.flags & FrameRecord.FLAG_HIDE_GUI) != 0;
+        boolean debug = (f.flags & FrameRecord.FLAG_DEBUG_OVERLAY) != 0;
+        if (mc.debugEntries.isOverlayVisible() != debug) mc.debugEntries.setOverlayVisible(debug);
         TaspHooks.applyMouse(mc, f);
         if (mc.level != null) hadLevel = true;
     }

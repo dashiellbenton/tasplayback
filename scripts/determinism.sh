@@ -5,7 +5,7 @@
 set -u
 node="$1"; rundir="$2"; logs="$3"; shift 3
 mkdir -p "$logs"
-rm -rf "$rundir/tasplayback"
+rm -f "$rundir"/tasplayback/devtest-*.json
 scripts/devtest.sh "$node" "$logs/off1.log" "-Dtasplayback.devtest=off1 -Dtasplayback.tripwire=true" "$@"
 scripts/devtest.sh "$node" "$logs/off2.log" "-Dtasplayback.devtest=off2 -Dtasplayback.tripwire=true" "$@"
 scripts/devtest.sh "$node" "$logs/on.log" "-Dtasplayback.devtest=on -Dtasplayback.autoRecord=true -Dtasplayback.tripwire=true" "$@"

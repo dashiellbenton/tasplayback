@@ -39,7 +39,7 @@ import java.util.stream.Stream;
 final class DevTest {
     static final String LABEL = System.getProperty("tasplayback.devtest");
     private static final String WORLD = "tasp-devtest";
-    private static final int END_TICK = 300;
+    private static final int END_TICK = 640;
 
     private static int phase; // 0 = waiting for title, 1 = world requested, 2 = in world, 3 = done
     private static int t;
@@ -118,7 +118,92 @@ final class DevTest {
         if (tick == 245) o.setCameraType(CameraType.THIRD_PERSON_FRONT);
         if (tick == 270) o.setCameraType(CameraType.FIRST_PERSON);
         if (tick >= 250 && tick < 270) key(o.keyDown, true); else key(o.keyDown, false);
+        if (tick >= 300) gui(mc, tick - 300);
         if (tick == END_TICK) finish(mc, p);
+    }
+
+    // ------------------------------------------------------------------ GUI part (M3)
+
+    private static double curX = 400, curY = 240, fromX, fromY, toX, toY;
+    private static int moveStart, moveLen;
+
+    private static long win(Minecraft mc) { return mc.getWindow().handle(); }
+
+    private static double sx(Minecraft mc) { return (double) mc.getWindow().getScreenWidth() / mc.getWindow().getGuiScaledWidth(); }
+
+    /** Starts a smooth cursor move to GUI coordinates (gx, gy) over n ticks. */
+    private static void moveTo(Minecraft mc, int t, double gx, double gy, int n) {
+        fromX = curX; fromY = curY; toX = gx * sx(mc); toY = gy * sx(mc); moveStart = t; moveLen = n;
+    }
+
+    private static void stepMouse(Minecraft mc, int t) {
+        if (moveLen <= 0 || t < moveStart) return;
+        double a = Math.min(1.0, (t - moveStart + 1) / (double) moveLen);
+        curX = fromX + (toX - fromX) * a; curY = fromY + (toY - fromY) * a;
+        ((dev.dbenton.tasplayback.fabric.mc12111.mixin.MouseHandlerInvoker) mc.mouseHandler).tasp$onMove(win(mc), curX, curY);
+        if (a >= 1.0) moveLen = 0;
+    }
+
+    private static void mouse(Minecraft mc, int button, int action) {
+        ((dev.dbenton.tasplayback.fabric.mc12111.mixin.MouseHandlerInvoker) mc.mouseHandler)
+                .tasp$onButton(win(mc), new net.minecraft.client.input.MouseButtonInfo(button, 0), action);
+    }
+
+    private static void keyEvent(Minecraft mc, int key, int action) {
+        ((dev.dbenton.tasplayback.fabric.mc12111.mixin.KeyboardHandlerInvoker) mc.keyboardHandler)
+                .tasp$keyPress(win(mc), action, new net.minecraft.client.input.KeyEvent(key, 0, 0));
+    }
+
+    private static void type(Minecraft mc, char c) {
+        ((dev.dbenton.tasplayback.fabric.mc12111.mixin.KeyboardHandlerInvoker) mc.keyboardHandler)
+                .tasp$charTyped(win(mc), new net.minecraft.client.input.CharacterEvent(c, 0));
+    }
+
+    /** GUI coordinates of the centre of menu slot i in the open container screen. */
+    private static double[] slot(Minecraft mc, int i) {
+        var s = (net.minecraft.client.gui.screens.inventory.AbstractContainerScreen<?>) mc.screen;
+        var a = (dev.dbenton.tasplayback.fabric.mc12111.mixin.ContainerScreenAccessor) s;
+        var sl = s.getMenu().getSlot(i);
+        return new double[] { a.tasp$left() + sl.x + 8, a.tasp$top() + sl.y + 8 };
+    }
+
+    private static void gui(Minecraft mc, int t) {
+        var o = mc.options;
+        stepMouse(mc, t);
+        boolean inv = mc.screen instanceof net.minecraft.client.gui.screens.inventory.InventoryScreen;
+        if (t == 0) KeyMapping.click(((dev.dbenton.tasplayback.fabric.mc12111.mixin.KeyMappingAccessor) o.keyInventory).tasp$key());
+        if (t == 5 && inv) { double[] q = slot(mc, 36); moveTo(mc, t, q[0], q[1], 10); }        // to hotbar slot 0 (stone)
+        if (t == 20) mouse(mc, 0, 1);
+        if (t == 21) mouse(mc, 0, 0);                                                           // pick up the stack
+        if (t == 24 && inv) { double[] q = slot(mc, 10); moveTo(mc, t, q[0], q[1], 12); }       // carry it across
+        if (t == 40) mouse(mc, 1, 1);
+        if (t == 41) mouse(mc, 1, 0);                                                           // right click: drop one
+        if (t == 44 && inv) { double[] q = slot(mc, 12); moveTo(mc, t, q[0], q[1], 8); }
+        if (t == 56) mouse(mc, 0, 1);
+        if (t == 57) mouse(mc, 0, 0);                                                           // place the rest
+        if (t == 60 && inv) { double[] q = slot(mc, 37); moveTo(mc, t, q[0], q[1], 10); }       // hover planks: tooltip
+        if (t == 95 && inv) {                                                                   // the recipe book button
+            var a = (dev.dbenton.tasplayback.fabric.mc12111.mixin.ContainerScreenAccessor) mc.screen;
+            moveTo(mc, t, a.tasp$left() + 114, mc.screen.height / 2 - 13, 10);
+        }
+        if (t == 110) mouse(mc, 0, 1);
+        if (t == 111) mouse(mc, 0, 0);                                                          // open the recipe book
+        if (t == 115 && inv) {                                                                  // its search box
+            int x = (mc.screen.width - 147) / 2 - 86, y = (mc.screen.height - 166) / 2;
+            moveTo(mc, t, x + 25 + 40, y + 13 + 7, 10);
+        }
+        if (t == 130) mouse(mc, 0, 1);
+        if (t == 131) mouse(mc, 0, 0);
+        if (t >= 135 && t < 140) type(mc, "plank".charAt(t - 135));
+        if (t == 150 && inv) { double[] q = slot(mc, 40); moveTo(mc, t, q[0], q[1], 15); }      // wander over the grid
+        if (t == 180) { keyEvent(mc, 256, 1); keyEvent(mc, 256, 0); }                           // ESC closes the inventory
+        if (t == 190) KeyMapping.click(((dev.dbenton.tasplayback.fabric.mc12111.mixin.KeyMappingAccessor) o.keyChat).tasp$key());
+        if (t >= 196 && t < 205) type(mc, "hello tas".charAt(t - 196));
+        if (t == 210) { keyEvent(mc, 257, 1); keyEvent(mc, 257, 0); }                           // Enter sends it
+        if (t == 230) { keyEvent(mc, 292, 1); keyEvent(mc, 292, 0); }                           // F3 on
+        if (t == 260) { keyEvent(mc, 292, 1); keyEvent(mc, 292, 0); }                           // F3 off
+        if (t == 280) { keyEvent(mc, 256, 1); keyEvent(mc, 256, 0); }                           // ESC: pause menu
+        if (t == 300) { keyEvent(mc, 256, 1); keyEvent(mc, 256, 0); }                           // ESC: back to game
     }
 
     private static void finish(Minecraft mc, LocalPlayer p) {
