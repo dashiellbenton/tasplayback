@@ -60,7 +60,10 @@ final class LegacyReplaySession {
         final KeptRange kept;
         final SegmentFeed feed;
         final TickTrack hud;
-        Range(KeptRange kept, SegmentFeed feed, TickTrack hud) { this.kept = kept; this.feed = feed; this.hud = hud; }
+        final dev.dbenton.tasplayback.core.replay.KeyedTrack gui;
+        Range(KeptRange kept, SegmentFeed feed, TickTrack hud, dev.dbenton.tasplayback.core.replay.KeyedTrack gui) {
+            this.kept = kept; this.feed = feed; this.hud = hud; this.gui = gui;
+        }
     }
 
     private int rangeIdx = -1;
@@ -98,6 +101,7 @@ final class LegacyReplaySession {
         this.clock = PlaybackClock.realTime(keys);
         List<EventRecord> world = rec.stream(StreamId.WORLD).decodeAll(new EventCodec());
         List<EventRecord> hud = rec.stream(StreamId.HUD).decodeAll(new EventCodec());
+        List<EventRecord> gui = rec.stream(StreamId.GUI).decodeAll(new EventCodec());
         for (EventRecord e : hud) {
             if (e.type == HudEvents.THUMBNAIL) {
                 HudEvents.Thumbnail t = HudEvents.Thumbnail.from(e);
@@ -109,7 +113,10 @@ final class LegacyReplaySession {
             for (EventRecord e : world) if (e.key.segment == kr.segment) segWorld.add(e);
             List<EventRecord> segHud = new ArrayList<>();
             for (EventRecord e : hud) if (e.key.segment == kr.segment && e.type != HudEvents.THUMBNAIL) segHud.add(e);
-            ranges.add(new Range(kr, new SegmentFeed(segWorld, kr::contains), new TickTrack(segHud, e -> kr.contains(e.key))));
+            List<EventRecord> segGui = new ArrayList<>();
+            for (EventRecord e : gui) if (e.key.segment == kr.segment) segGui.add(e);
+            ranges.add(new Range(kr, new SegmentFeed(segWorld, kr::contains), new TickTrack(segHud, e -> kr.contains(e.key)),
+                    new dev.dbenton.tasplayback.core.replay.KeyedTrack(segGui, e -> kr.contains(e.key))));
         }
     }
 
@@ -143,6 +150,21 @@ final class LegacyReplaySession {
         channel.runPendingTasks();
         Object o;
         while ((o = channel.readOutbound()) != null) ReferenceCountUtil.release(o);
+    }
+
+    /** Recorded frame the replay is advancing to (bound for GUI event dispatch inside ticks). */
+    private long frameBound;
+
+    /** Dispatches GUI events that are due now (also called from GuiScreen.handleInput inside replay ticks). */
+    void dispatchDueGui() {
+        if (rangeIdx < 0) return;
+        for (EventRecord e : ranges.get(rangeIdx).gui.due(tickCount, frameBound)) {
+            try {
+                LegacyGui.apply(mc, e);
+            } catch (IOException | RuntimeException ex) {
+                TASPlaybackLegacy.LOGGER.warn("Replay: GUI event failed", ex);
+            }
+        }
     }
 
     @SuppressWarnings("unchecked")
@@ -195,15 +217,18 @@ final class LegacyReplaySession {
         long targetTick = (long) Math.floor(g);
         float partial = (float) (g - targetTick);
 
+        frameBound = a.key.frame;
+        dispatchDueGui();
         feedDue(a.key.frame);
         int guard = 0;
         while (tickCount < targetTick && guard++ < MAX_TICKS_PER_FRAME) {
+            tickCount++; // GUI input of this tick is recorded with the in-progress count; it is dispatched inside runTick
             mc.runTick();
-            tickCount++;
             drainOutbound();
             applyHud();
             feedDue(a.key.frame);
         }
+        dispatchDueGui(); // leftovers, e.g. input while the game was paused (no ticks counted)
         timer.elapsedTicks = 0;
         timer.renderPartialTicks = partial;
         ((MinecraftAccessor) mc).tasp$setPausedPartial(partial);
@@ -211,6 +236,13 @@ final class LegacyReplaySession {
         shownIndex = i;
         mc.gameSettings.thirdPersonView = current.perspective;
         mc.gameSettings.hideGUI = (current.flags & FrameRecord.FLAG_HIDE_GUI) != 0;
+        mc.gameSettings.showDebugInfo = (current.flags & FrameRecord.FLAG_DEBUG_OVERLAY) != 0;
+        if (mc.currentScreen != null && current != null) {
+            // hover highlights and tooltips read the real cursor: move it to the recorded position
+            int lx = (int) Math.round(current.mouseX * mc.displayWidth / Math.max(1, current.windowW));
+            int ly = mc.displayHeight - 1 - (int) Math.round(current.mouseY * mc.displayHeight / Math.max(1, current.windowH));
+            org.lwjgl.input.Mouse.setCursorPosition(lx, ly);
+        }
         if (mc.world != null) hadWorld = true;
     }
 

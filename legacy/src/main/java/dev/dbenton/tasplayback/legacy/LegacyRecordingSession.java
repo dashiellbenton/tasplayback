@@ -34,6 +34,7 @@ final class LegacyRecordingSession {
     private final SegmentGraph graph = new SegmentGraph();
     private final LegacyInventoryTracker inventory = new LegacyInventoryTracker();
     private final LegacyPlayerState.Memo memo = new LegacyPlayerState.Memo();
+    private final LegacyGui.FrameState guiState = new LegacyGui.FrameState();
     private final int thumbnailEvery;
 
     private int segment = -1;
@@ -99,6 +100,7 @@ final class LegacyRecordingSession {
         tickCount = 0;
         lastTickOfSegment = 0;
         inventory.reset();
+        guiState.reset();
         memo.main = net.minecraft.item.ItemStack.EMPTY;
         memo.off = net.minecraft.item.ItemStack.EMPTY;
     }
@@ -136,9 +138,21 @@ final class LegacyRecordingSession {
         recorder.offerEvent(StreamId.HUD, new EventRecord(new TimeKey(segment, tickCount, 0f, frameCounter), HudEvents.BLOCK_PREDICT, s.toByteArray()));
     }
 
+    void onGuiEvent(Minecraft mc, int type, byte[] payload) {
+        if (segment < 0) return;
+        float partial = ((dev.dbenton.tasplayback.legacy.mixin.MinecraftAccessor) mc).tasp$timer().renderPartialTicks;
+        recorder.offerEvent(StreamId.GUI, new EventRecord(key(partial), type, payload));
+    }
+
     void onFrameRendered(Minecraft mc, float partial, float worldFov, float handFov) {
         if (segment < 0 || mc.world == null || mc.player == null) return;
         TimeKey k = key(partial);
+        if (mc.player.openContainer != null) {
+            byte[] menu = guiState.menu(mc.player.openContainer, mc.player.inventory.getItemStack());
+            if (menu != null) recorder.offerEvent(StreamId.GUI, new EventRecord(k, dev.dbenton.tasplayback.core.replay.GuiEvents.MENU_STATE, menu));
+        }
+        byte[] scroll = guiState.creativeScroll(mc.currentScreen);
+        if (scroll != null) recorder.offerEvent(StreamId.GUI, new EventRecord(k, dev.dbenton.tasplayback.core.replay.GuiEvents.SCREEN_STATE, scroll));
         FrameRecord f = LegacyFrameCapture.capture(mc, k, partial, worldFov, handFov);
         recorder.offerFrame(f);
         if (thumbnailEvery > 0 && frameCounter % thumbnailEvery == 0) {

@@ -64,6 +64,7 @@ public final class LegacyClient {
         if (replay != null) return;
         if (recording == null && armed) {
             try {
+                LegacyGui.resetDebug();
                 recording = LegacyRecordingSession.start(mc, recordingsDir(), thumbnailEvery);
                 TASPlaybackLegacy.LOGGER.info("Recording to {}", recording.target());
             } catch (IOException e) {
@@ -90,6 +91,10 @@ public final class LegacyClient {
         if (recording != null && replay == null) {
             recording.onMainThreadPacket(packet, ((MinecraftAccessor) mc).tasp$timer().renderPartialTicks);
         }
+    }
+
+    void onGuiEvent(int type, byte[] payload) {
+        if (recording != null && replay == null) recording.onGuiEvent(mc, type, payload);
     }
 
     public void beginLocalAction() { localAction.get()[0]++; }
@@ -168,6 +173,7 @@ public final class LegacyClient {
     public void startReplay(Path file, LegacyReplaySession.Mode mode) {
         if (recording != null) stopRecording();
         try {
+            LegacyGui.resetDebug();
             replay = new LegacyReplaySession(mc, file, mode);
             // the viewer's window focus must not pause or menu the replay; tutorial hints belong to the viewer
             savedPauseOnLostFocus = mc.gameSettings.pauseOnLostFocus;
@@ -210,7 +216,7 @@ public final class LegacyClient {
     }
 
     private void pollReplayKeys(LegacyReplaySession r) {
-        if (mc.currentScreen != null) return;
+        // viewer input never reaches replayed screens, so the controls also work while a screen is open
         if (pressed(Keyboard.KEY_SPACE)) r.togglePause();
         if (pressed(Keyboard.KEY_RIGHT)) r.step(1);
         if (pressed(Keyboard.KEY_LEFT)) r.step(-1);

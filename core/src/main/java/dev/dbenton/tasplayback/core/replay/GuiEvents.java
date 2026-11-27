@@ -22,4 +22,6 @@ public final class GuiEvents {
     public static final int MENU_STATE = 3;
     /** Debug overlay (F3) text lines as shown, when they changed; replaces the viewer's live values. */
     public static final int DEBUG_TEXT = 4;
+    /** Screen state with no input event behind it (e.g. the creative inventory's scroll position); version-specific. */
+    public static final int SCREEN_STATE = 5;
 }

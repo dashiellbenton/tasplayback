@@ -5,8 +5,8 @@
 | Plan | Approved 2026-11-27 (decisions in PLAN.md §12) |
 | 0 Build skeleton | Done |
 | 1 core | Done |
-| **2 Vertical slice (1.21.11, 1.12.2-forge, 1.12.2-legacyfabric)** | **Done** |
-| 3 GUI Tier 1 | not started |
+| 2 Vertical slice (1.21.11, 1.12.2-forge, 1.12.2-legacyfabric) | Done |
+| **3 GUI Tier 1 (1.21.11, 1.12.2-forge, 1.12.2-legacyfabric)** | **Done** |
 | 4 Sound | not started |
 | 5 Exporter | not started |
 | 6 Port all Fabric nodes | not started |
@@ -18,17 +18,90 @@
 "Boots" = the dev client started headless (Xvfb + Mesa llvmpipe), logged TASPlayback's init line, logged the
 smoke mixin line (proving mixin + remapping work), and reached the title screen with no crash report.
 
-| Node | Loader / toolchain | Java | Jar builds | Mixin target namespace in jar | Boots | Record + replay (M2) | Notes |
-|---|---|---|---|---|---|---|---|
-| 1.12.2-forge | Forge 14.23.5.2847, RFG 2.0.6, MixinBooter 12.5 | 8 | ✅ | MCP class names + SRG refmap | ✅ | ✅ avg diff 0.04 | |
-| 1.12.2-legacyfabric | LegacyFabric, legacy-looming 1.16.1 (Loom 1.16.3), `net.legacyfabric:yarn:1.12.2+build.mcp` | 8 | ✅ | `net/minecraft/class_1600` (LegacyFabric intermediary, same as released TASmod) | ✅ | ✅ avg diff 0.03 | |
-| 1.14.4 | Fabric, Loom 1.19.4 (remap), Mojang mappings | 8 | ✅ | `class_310` (Fabric intermediary) | ✅ | not yet (M6) | |
-| 1.16.5 | same | 8 | ✅ | intermediary | ✅ | not yet (M6) | |
-| 1.20.1 | same | 17 | ✅ | intermediary | ✅ | not yet (M6) | |
-| 1.21.11 | same | 21 | ✅ | `class_310` | ✅ | ✅ avg diff 0.51 | |
-| 26.3 | Fabric, Loom 1.19.4 (no remap), unobfuscated | 25 | ✅ | `net/minecraft/client/Minecraft` | ✅ | not yet (M6) | headless needs `SDL_VIDEO_FORCE_EGL=1` (see below) |
+| Node | Loader / toolchain | Java | Jar builds | Mixin target namespace in jar | Boots | Record + replay (M2) | GUI screens (M3) | Notes |
+|---|---|---|---|---|---|---|---|---|
+| 1.12.2-forge | Forge 14.23.5.2847, RFG 2.0.6, MixinBooter 12.5 | 8 | ✅ | MCP class names + SRG refmap | ✅ | ✅ avg diff 0.04 | ✅ avg diff 0.02 | |
+| 1.12.2-legacyfabric | LegacyFabric, legacy-looming 1.16.1 (Loom 1.16.3), `net.legacyfabric:yarn:1.12.2+build.mcp` | 8 | ✅ | `net/minecraft/class_1600` (LegacyFabric intermediary, same as released TASmod) | ✅ | ✅ avg diff 0.03 | ✅ avg diff 0.02 | |
+| 1.14.4 | Fabric, Loom 1.19.4 (remap), Mojang mappings | 8 | ✅ | `class_310` (Fabric intermediary) | ✅ | not yet (M6) | not yet (M6) | |
+| 1.16.5 | same | 8 | ✅ | intermediary | ✅ | not yet (M6) | not yet (M6) | |
+| 1.20.1 | same | 17 | ✅ | intermediary | ✅ | not yet (M6) | not yet (M6) | |
+| 1.21.11 | same | 21 | ✅ | `class_310` | ✅ | ✅ avg diff 0.51 | ✅ avg diff 0.29 | |
+| 26.3 | Fabric, Loom 1.19.4 (no remap), unobfuscated | 25 | ✅ | `net/minecraft/client/Minecraft` | ✅ | not yet (M6) | not yet (M6) | headless needs `SDL_VIDEO_FORCE_EGL=1` (see below) |
 
 Evidence: `docs/m0/smoke-contact-sheet.jpg` (title screens of all seven, in table order).
+
+## Milestone 3 report: GUI screens (Tier 1) on 1.21.11, 1.12.2-forge and 1.12.2-legacyfabric
+
+### What works
+
+Screens are rebuilt by the real game code, not drawn from a capture. During recording, `gui.bin` gets:
+
+- **INPUT**: raw GUI input as the screen received it. On 1.21.11 that is the GLFW mouse button, move,
+  scroll, key and char callbacks, replayed into vanilla's `MouseHandler`/`KeyboardHandler`. On 1.12.2 it is
+  the resolved arguments of `mouseClicked`, `mouseReleased`, `mouseClickMove` and `keyTyped`, plus the
+  shift/ctrl/alt state. Replay calls the same methods.
+- **SCREEN**: client-opened screens. Replay reopens the inventory, the creative inventory, chat (with its
+  starting text) and the pause menu. Server-opened containers still come from the replayed packets.
+- **MENU_STATE**: slot contents and the carried stack, compared each frame. This is a safety net: replayed
+  clicks already produce the same result, and this catches anything the server corrected.
+- **SCREEN_STATE** (1.12.2): the creative inventory's scroll position.
+- **DEBUG_TEXT**: the F3 lines, recorded when they change and shown verbatim. Live FPS, memory and so on
+  would differ.
+
+During replay, live keyboard and mouse input never reaches a screen. Replay controls still work while a
+screen is open. Hover highlights and tooltips follow the recorded cursor, and the 1.12.2 pause menu shows
+the buttons as recorded ("Save and Quit", LAN enabled), although the replay client has no integrated server.
+
+TASmod compatibility: TASmod `@Redirect`s every LWJGL `Mouse`/`Keyboard` read in `GuiScreen`. TASPlayback
+uses `@WrapOperation` on the screen-method call sites and `@Inject` elsewhere, so both mods can apply
+their mixins together.
+
+### How I verified it
+
+The scripted dev test continues after the M2 script with a GUI phase, the same on every node:
+
+1. Open the inventory, pick up the stone stack, drop one item with a right click, and place the rest.
+2. Hover the planks (tooltip).
+3. Open the recipe book and type "plank" into its search box.
+4. Wander the cursor over the grid, then press ESC.
+5. Open chat, type "hello tas", and press Enter.
+6. Turn F3 on, then off.
+7. Open the pause menu, then close it.
+
+`scripts/record-replay-verify.sh` records the run, replays it, and compares frames. `scripts/determinism.sh`
+compares the final state with recording off, off, and on.
+
+| Node | Frames compared | Mean abs diff (0-255) avg / max | Determinism off = off = on |
+|---|---|---|---|
+| 1.21.11 | 60 | 0.29 / 9.4 (max = frame 0, loading screen; GUI frames 0–238 px different) | ✅ |
+| 1.12.2-forge | 116 | 0.02 / 0.64 (max = world-join frames) | ✅ |
+| 1.12.2-legacyfabric | 116 | 0.02 / 0.60 (max = world-join frames) | ✅ |
+
+The final inventory after replay is identical to the recording on every node (1 stone in slot 10, 29 in
+slot 12). Record-vs-replay contact sheets are in `docs/m3/` (recording on the left, replay on the right).
+
+Bugs found and fixed while verifying 1.12.2:
+
+- **Pause menu.** The replay showed "Disconnect" and a disabled LAN button, because there is no
+  integrated server. The SCREEN event now carries both states.
+- **Hover lag.** The cursor was set from the previous frame's record, so the tooltip appeared one frame
+  late (Forge 1.6 diff spike). It is now set after the frame is chosen.
+
+### Remaining differences and open risks
+
+1. **Test input on 1.12.2.** LWJGL 2 has no way to inject input events, so the dev test calls the same
+   path the wrapped call sites call (record, then invoke the screen method). The `@WrapOperation` hooks
+   themselves are only proven to apply (mixin load), not driven by real input events in CI. They need a
+   manual check with a real mouse.
+2. **Double clicks on 1.12.2.** `GuiContainer` measures double clicks with `Minecraft.getSystemTime()`,
+   not the recorded time, so a fast replay could miss a shift-double-click "collect all".
+3. **Mouse precision on 1.12.2.** The mouse is integer-only, so hover over 1-px borders can differ after
+   window scaling. Replay is assumed to run at the recorded window size.
+4. **Other screens.** Client screens reached by clicks inside a replayed screen (Options…, Statistics,
+   recipe book tabs) are rebuilt by the replayed clicks. Screens opened by a keybind with no screen open,
+   other than inventory, chat and pause (for example the advancements key), are not reopened yet: Tier 2 (M8).
+5. **Modded screens.** Text fields and widgets of other mods replay only through the same input path.
+   Mods that read LWJGL directly in `drawScreen` may differ.
 
 ## Milestone 2 report: vertical slice on 1.21.11, 1.12.2-forge and 1.12.2-legacyfabric
 
@@ -65,9 +138,9 @@ thumbnails captured every 10 frames, then replays it frame by frame in a fresh c
 
 | Node | Frames compared | Mean abs diff (0-255) avg / max | Full-size frames pixel-identical | Determinism off = off = on | RNG tripwire |
 |---|---|---|---|---|---|
-| 1.21.11 | 30 | 0.51 / 8.8 (max = frame 0, loading screen) | not measured this run; HUD region 0 px in all | ✅ bit-identical | ✅ 0 violations |
-| 1.12.2-forge | 63 | 0.04 / 0.54 | 13 of 16 | ✅ bit-identical | n/a (see risks) |
-| 1.12.2-legacyfabric | 63 | 0.03 / 0.87 | 10 of 16 (others: horizon line, ≤ 1627 px) | ✅ bit-identical | n/a |
+| 1.21.11 | 30 | 0.51 / 8.8 (max = frame 0, loading screen) | not measured this run; HUD region 0 px in all | ✅ bit-identical | ✅ avg diff 0.29 | ✅ 0 violations |
+| 1.12.2-forge | 63 | 0.04 / 0.54 | 13 of 16 | ✅ bit-identical | ✅ avg diff 0.02 | n/a (see risks) |
+| 1.12.2-legacyfabric | 63 | 0.03 / 0.87 | 10 of 16 (others: horizon line, ≤ 1627 px) | ✅ bit-identical | ✅ avg diff 0.02 | n/a |
 
 Evidence: `docs/m2/1.21.11-record-vs-replay.jpg`, `docs/m2/1.12.2-record-vs-replay.jpg`.
 
@@ -216,3 +289,4 @@ runtime of the 1.12.2–1.16.5 nodes). `buildAll` now depends on both test runs.
 - 2026-11-27: Milestone 0. One build, 7 nodes, all boot headless. Details above.
 - 2026-11-27: Milestone 1. `core` complete, 54 tests green on Java 21 and Java 8. Details above.
 - 2026-11-27: Milestone 2. Record + replay on 1.21.11, 1.12.2-forge and 1.12.2-legacyfabric; verified frame by frame and with on/off determinism runs. Details above.
+- 2026-11-27: Milestone 3. GUI screens record and replay on 1.21.11 (M3a) and both 1.12.2 nodes (M3b); verified frame by frame, determinism unchanged. Details above.
