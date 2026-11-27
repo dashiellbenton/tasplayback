@@ -25,3 +25,12 @@ val testJava8 by tasks.registering(Test::class) {
     javaLauncher = javaToolchains.launcherFor { languageVersion = JavaLanguageVersion.of(8) }
 }
 tasks.check { dependsOn(testJava8) }
+
+// Dump a recording without Minecraft: ./gradlew :core:inspect --args="path/to/rec.tasp"
+tasks.register<JavaExec>("inspect") {
+    description = "Prints the contents of a .tasp recording"
+    group = "application"
+    classpath = sourceSets.main.get().runtimeClasspath
+    mainClass = "dev.dbenton.tasplayback.core.tools.Inspect"
+    workingDir = rootDir
+}
